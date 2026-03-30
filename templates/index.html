@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Low-Content Book Generator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f0f2f5;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,.08);
+      width: 100%;
+      max-width: 520px;
+      padding: 40px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .logo-icon {
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #111;
+    }
+
+    .subtitle {
+      color: #6b7280;
+      font-size: 14px;
+      margin-bottom: 32px;
+    }
+
+    /* Drop zone */
+    .drop-zone {
+      border: 2px dashed #d1d5db;
+      border-radius: 12px;
+      padding: 36px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      position: relative;
+      margin-bottom: 24px;
+    }
+
+    .drop-zone:hover,
+    .drop-zone.drag-over {
+      border-color: #6366f1;
+      background: #f5f3ff;
+    }
+
+    .drop-zone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    .drop-icon { font-size: 36px; margin-bottom: 8px; }
+
+    .drop-zone .drop-text {
+      font-size: 14px;
+      color: #374151;
+      font-weight: 500;
+    }
+
+    .drop-zone .drop-hint {
+      font-size: 12px;
+      color: #9ca3af;
+      margin-top: 4px;
+    }
+
+    /* Preview */
+    #preview-wrap {
+      display: none;
+      align-items: center;
+      gap: 12px;
+      background: #f9fafb;
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin-bottom: 24px;
+    }
+
+    #preview-wrap img {
+      width: 52px;
+      height: 52px;
+      object-fit: cover;
+      border-radius: 6px;
+      border: 1px solid #e5e7eb;
+    }
+
+    .preview-info { flex: 1; overflow: hidden; }
+    .preview-name { font-size: 13px; font-weight: 600; color: #111; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .preview-size { font-size: 12px; color: #6b7280; }
+
+    .remove-btn {
+      background: none;
+      border: none;
+      color: #9ca3af;
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+      padding: 4px;
+      border-radius: 4px;
+      transition: color .15s;
+    }
+    .remove-btn:hover { color: #ef4444; }
+
+    /* Form fields */
+    .field { margin-bottom: 20px; }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 6px;
+    }
+
+    input[type="number"],
+    input[type="text"] {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 14px;
+      color: #111;
+      outline: none;
+      transition: border-color .2s;
+    }
+
+    input[type="number"]:focus,
+    input[type="text"]:focus {
+      border-color: #6366f1;
+    }
+
+    .field-hint { font-size: 12px; color: #9ca3af; margin-top: 4px; }
+
+    /* Page presets */
+    .presets {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+
+    .preset-btn {
+      padding: 4px 12px;
+      border: 1.5px solid #d1d5db;
+      border-radius: 20px;
+      background: #fff;
+      font-size: 12px;
+      font-weight: 500;
+      color: #374151;
+      cursor: pointer;
+      transition: border-color .15s, background .15s, color .15s;
+    }
+
+    .preset-btn:hover,
+    .preset-btn.active {
+      border-color: #6366f1;
+      background: #ede9fe;
+      color: #6366f1;
+    }
+
+    /* Generate button */
+    .generate-btn {
+      width: 100%;
+      padding: 13px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .2s, transform .1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .generate-btn:hover:not(:disabled) { opacity: .9; }
+    .generate-btn:active:not(:disabled) { transform: scale(.98); }
+    .generate-btn:disabled { opacity: .6; cursor: not-allowed; }
+
+    /* Progress */
+    #progress-wrap {
+      display: none;
+      margin-top: 20px;
+    }
+
+    .progress-bar-bg {
+      background: #e5e7eb;
+      border-radius: 99px;
+      height: 8px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #6366f1, #8b5cf6);
+      border-radius: 99px;
+      width: 0%;
+      transition: width .4s ease;
+    }
+
+    .progress-label { font-size: 12px; color: #6b7280; text-align: center; }
+
+    /* Toast */
+    #toast {
+      display: none;
+      margin-top: 20px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    #toast.error  { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+    #toast.success { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="logo">
+    <div class="logo-icon">📖</div>
+    <h1>Low-Content Book Generator</h1>
+  </div>
+  <p class="subtitle">Upload a single page, set the count, and download your PDF.</p>
+
+  <!-- Drop zone -->
+  <div class="drop-zone" id="drop-zone">
+    <input type="file" id="file-input" accept=".jpg,.jpeg,.png" />
+    <div class="drop-icon">🖼️</div>
+    <div class="drop-text">Drop your page here or click to browse</div>
+    <div class="drop-hint">JPG or PNG — max 50 MB</div>
+  </div>
+
+  <!-- Preview -->
+  <div id="preview-wrap">
+    <img id="preview-img" src="" alt="preview" />
+    <div class="preview-info">
+      <div class="preview-name" id="preview-name"></div>
+      <div class="preview-size" id="preview-size"></div>
+    </div>
+    <button class="remove-btn" id="remove-btn" title="Remove">✕</button>
+  </div>
+
+  <!-- Page count -->
+  <div class="field">
+    <label for="pages-input">Number of Pages</label>
+    <input type="number" id="pages-input" value="100" min="1" max="1000" />
+    <div class="presets">
+      <button class="preset-btn" data-val="50">50</button>
+      <button class="preset-btn active" data-val="100">100</button>
+      <button class="preset-btn" data-val="120">120</button>
+      <button class="preset-btn" data-val="150">150</button>
+      <button class="preset-btn" data-val="200">200</button>
+    </div>
+  </div>
+
+  <!-- Output name -->
+  <div class="field">
+    <label for="output-name">Output Filename <span style="font-weight:400;color:#9ca3af">(optional)</span></label>
+    <input type="text" id="output-name" placeholder="e.g. my_journal" />
+    <div class="field-hint">Leave blank to auto-name. .pdf will be appended automatically.</div>
+  </div>
+
+  <!-- Button -->
+  <button class="generate-btn" id="generate-btn" disabled>
+    <span id="btn-label">Generate PDF</span>
+  </button>
+
+  <!-- Progress -->
+  <div id="progress-wrap">
+    <div class="progress-bar-bg"><div class="progress-bar" id="progress-bar"></div></div>
+    <div class="progress-label" id="progress-label">Generating…</div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast"></div>
+</div>
+
+<script>
+  const dropZone    = document.getElementById("drop-zone");
+  const fileInput   = document.getElementById("file-input");
+  const previewWrap = document.getElementById("preview-wrap");
+  const previewImg  = document.getElementById("preview-img");
+  const previewName = document.getElementById("preview-name");
+  const previewSize = document.getElementById("preview-size");
+  const removeBtn   = document.getElementById("remove-btn");
+  const pagesInput  = document.getElementById("pages-input");
+  const outputName  = document.getElementById("output-name");
+  const generateBtn = document.getElementById("generate-btn");
+  const btnLabel    = document.getElementById("btn-label");
+  const progressWrap = document.getElementById("progress-wrap");
+  const progressBar  = document.getElementById("progress-bar");
+  const progressLabel = document.getElementById("progress-label");
+  const toast        = document.getElementById("toast");
+
+  let selectedFile = null;
+
+  // Drag-over style
+  dropZone.addEventListener("dragover",  e => { e.preventDefault(); dropZone.classList.add("drag-over"); });
+  dropZone.addEventListener("dragleave", () => dropZone.classList.remove("drag-over"));
+  dropZone.addEventListener("drop", e => {
+    e.preventDefault();
+    dropZone.classList.remove("drag-over");
+    const file = e.dataTransfer.files[0];
+    if (file) setFile(file);
+  });
+
+  fileInput.addEventListener("change", () => {
+    if (fileInput.files[0]) setFile(fileInput.files[0]);
+  });
+
+  function setFile(file) {
+    const ext = file.name.split(".").pop().toLowerCase();
+    if (!["jpg","jpeg","png"].includes(ext)) {
+      showToast("Only JPG and PNG files are supported.", "error");
+      return;
+    }
+    selectedFile = file;
+    const url = URL.createObjectURL(file);
+    previewImg.src = url;
+    previewName.textContent = file.name;
+    previewSize.textContent = formatBytes(file.size);
+    previewWrap.style.display = "flex";
+    dropZone.style.display = "none";
+    generateBtn.disabled = false;
+    hideToast();
+  }
+
+  removeBtn.addEventListener("click", () => {
+    selectedFile = null;
+    fileInput.value = "";
+    previewWrap.style.display = "none";
+    dropZone.style.display = "block";
+    generateBtn.disabled = true;
+  });
+
+  // Preset buttons
+  document.querySelectorAll(".preset-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".preset-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      pagesInput.value = btn.dataset.val;
+    });
+  });
+
+  pagesInput.addEventListener("input", () => {
+    document.querySelectorAll(".preset-btn").forEach(b => {
+      b.classList.toggle("active", b.dataset.val === pagesInput.value);
+    });
+  });
+
+  // Generate
+  generateBtn.addEventListener("click", async () => {
+    if (!selectedFile) return;
+
+    const pages = parseInt(pagesInput.value);
+    if (isNaN(pages) || pages < 1 || pages > 1000) {
+      showToast("Pages must be between 1 and 1000.", "error");
+      return;
+    }
+
+    // UI: loading state
+    generateBtn.disabled = true;
+    btnLabel.textContent = "Generating…";
+    progressWrap.style.display = "block";
+    hideToast();
+    animateProgress();
+
+    const formData = new FormData();
+    formData.append("image", selectedFile);
+    formData.append("pages", pages);
+    formData.append("output_name", outputName.value.trim());
+
+    try {
+      const response = await fetch("/generate", { method: "POST", body: formData });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Unknown server error.");
+      }
+
+      // Trigger download
+      const blob = await response.blob();
+      const disposition = response.headers.get("Content-Disposition") || "";
+      const nameMatch = disposition.match(/filename="?([^"]+)"?/);
+      const filename = nameMatch ? nameMatch[1] : "book.pdf";
+
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+
+      finishProgress();
+      showToast(`✓ "${filename}" downloaded successfully!`, "success");
+    } catch (err) {
+      finishProgress(true);
+      showToast(err.message, "error");
+    } finally {
+      generateBtn.disabled = false;
+      btnLabel.textContent = "Generate PDF";
+    }
+  });
+
+  // Progress animation (fake progress while server works)
+  let progressTimer = null;
+
+  function animateProgress() {
+    let pct = 0;
+    progressBar.style.width = "0%";
+    progressLabel.textContent = "Uploading and generating…";
+    progressTimer = setInterval(() => {
+      pct = Math.min(pct + Math.random() * 6, 85);
+      progressBar.style.width = pct + "%";
+    }, 300);
+  }
+
+  function finishProgress(error = false) {
+    clearInterval(progressTimer);
+    progressBar.style.width = error ? "0%" : "100%";
+    progressLabel.textContent = error ? "" : "Done!";
+    setTimeout(() => { progressWrap.style.display = "none"; }, 1200);
+  }
+
+  function showToast(msg, type) {
+    toast.textContent = msg;
+    toast.className = type;
+    toast.style.display = "block";
+  }
+
+  function hideToast() {
+    toast.style.display = "none";
+  }
+
+  function formatBytes(bytes) {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  }
+</script>
+</body>
+</html>
