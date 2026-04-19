@@ -85,135 +85,214 @@ def _card_html(row: dict) -> str:
     flag = row.get("flag", "✈")
     dest_zh = DEST_ZH.get(iata, row["destination"])
     dest_en = row["destination"]
-    region_zh = REGION_ZH.get(row.get("region", ""), row.get("region", ""))
     price = f"{int(row['price']):,}" if row.get("price") else "—"
     currency = row.get("currency", "TWD")
     date_zh = _fmt_date_zh(row.get("best_date", ""))
     airline_name = row.get("airline_name", "") or ""
     airline_logo = _airline_logo_url(airline_name)
-    if airline_name:
-        hide = "this.style.display='none'"
-        logo_tag = f'<img class="airline-logo" src="{airline_logo}" onerror="{hide}" alt="">' if airline_logo else ""
-        airline_html = f'<div class="airline-row">{logo_tag}<span class="airline-name">{airline_name}</span></div>'
-    else:
-        airline_html = ""
+
+    hide = "this.style.display='none'"
+    logo_tag = (
+        f'<img class="airline-logo" src="{airline_logo}" onerror="{hide}" alt="">'
+        if airline_logo else
+        '<div class="airline-logo-placeholder">✈</div>'
+    )
+    airline_label = airline_name if airline_name else "—"
 
     return f"""<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 <style>
-  @import url('data:text/css,');
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
   body {{
     width: 600px; height: 340px;
-    background: #0f1117;
+    background: #0d1117;
     font-family: "Noto Sans CJK TC", "Noto Sans TC", "PingFang TC",
                  "Microsoft JhengHei", -apple-system, BlinkMacSystemFont, sans-serif;
     display: flex; align-items: center; justify-content: center;
   }}
   .card {{
     width: 560px; height: 300px;
-    background: #1a1d27;
-    border-radius: 20px;
-    border: 1px solid #2e3250;
-    padding: 28px 32px;
+    background: #161b22;
+    border-radius: 18px;
+    border: 1px solid #30363d;
+    padding: 26px 28px 22px;
     position: relative;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
   }}
-  .top-row {{
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-  }}
-  .flag {{ font-size: 44px; line-height: 1; }}
-  .badge {{
-    background: #22263a;
-    border: 1px solid #2e3250;
-    color: #7c83a8;
-    font-size: 14px;
-    padding: 5px 14px;
-    border-radius: 20px;
-    letter-spacing: 0.5px;
-  }}
-  .dest-zh {{
-    font-size: 44px;
-    font-weight: 700;
-    color: #e8eaf6;
-    line-height: 1.1;
-    margin-top: 6px;
-  }}
-  .dest-sub {{
-    font-size: 15px;
-    color: #7c83a8;
-    margin-top: 5px;
-    letter-spacing: 0.3px;
-  }}
-  .sep {{ margin: 0 6px; }}
-  .price-row {{ display: flex; align-items: baseline; gap: 6px; }}
-  .price {{
-    font-size: 50px;
-    font-weight: 800;
-    color: #4ade80;
-    line-height: 1;
-    letter-spacing: -1px;
-  }}
-  .currency {{
-    font-size: 18px;
-    color: #7c83a8;
-    font-weight: 400;
-  }}
-  .date {{
-    font-size: 14px;
-    color: #7c83a8;
-    margin-top: 6px;
-  }}
-  .airline-row {{
+
+  /* ── Row 1: airline name + flag ── */
+  .row-top {{
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-top: 10px;
-  }}
-  .airline-logo {{
-    width: 24px;
-    height: 24px;
-    border-radius: 4px;
-    object-fit: contain;
-    background: #22263a;
+    justify-content: space-between;
   }}
   .airline-name {{
+    font-size: 18px;
+    font-weight: 700;
+    color: #e6edf3;
+    letter-spacing: 0.2px;
+  }}
+  .flag-badge {{
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #21262d;
+    border: 1px solid #30363d;
+    border-radius: 20px;
+    padding: 5px 12px 5px 8px;
+  }}
+  .flag {{ font-size: 22px; line-height: 1; }}
+  .flag-label {{
+    font-size: 14px;
+    color: #8b949e;
+    font-weight: 500;
+  }}
+
+  /* ── Row 2: logo + route ── */
+  .row-mid {{
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex: 1;
+    padding: 14px 0 8px;
+  }}
+  .airline-logo {{
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    object-fit: contain;
+    background: #21262d;
+    border: 1px solid #30363d;
+    flex-shrink: 0;
+  }}
+  .airline-logo-placeholder {{
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: #21262d;
+    border: 1px solid #30363d;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+    flex-shrink: 0;
+  }}
+  .route-block {{
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }}
+  .route {{
+    font-size: 32px;
+    font-weight: 800;
+    color: #e6edf3;
+    letter-spacing: 0.5px;
+    line-height: 1;
+  }}
+  .route-sub {{
+    font-size: 14px;
+    color: #8b949e;
+    letter-spacing: 0.3px;
+  }}
+
+  /* dest block on right side */
+  .dest-block {{
+    margin-left: auto;
+    text-align: right;
+  }}
+  .dest-zh {{
+    font-size: 36px;
+    font-weight: 800;
+    color: #e6edf3;
+    line-height: 1;
+  }}
+  .dest-tag {{
     font-size: 13px;
-    color: #7c83a8;
+    color: #8b949e;
+    margin-top: 4px;
+  }}
+
+  /* ── Row 3: date + price ── */
+  .row-bottom {{
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    border-top: 1px solid #21262d;
+    padding-top: 14px;
+  }}
+  .date-block {{
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }}
+  .date-label {{
+    font-size: 11px;
+    color: #6e7681;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+  }}
+  .date-val {{
+    font-size: 14px;
+    color: #8b949e;
+  }}
+  .price-block {{
+    text-align: right;
+  }}
+  .price-prefix {{
+    font-size: 15px;
+    color: #8b949e;
+    font-weight: 400;
+  }}
+  .price {{
+    font-size: 38px;
+    font-weight: 800;
+    color: #e6edf3;
+    letter-spacing: -0.5px;
+    line-height: 1;
   }}
   .watermark {{
     position: absolute;
-    bottom: 14px;
-    right: 20px;
-    font-size: 11px;
-    color: #2e3250;
+    bottom: 10px;
+    right: 16px;
+    font-size: 10px;
+    color: #21262d;
     letter-spacing: 0.3px;
   }}
 </style>
 </head>
 <body>
 <div class="card">
-  <div class="top-row">
-    <div class="flag">{flag}</div>
-    <div class="badge">{region_zh}</div>
-  </div>
-  <div>
-    <div class="dest-zh">{dest_zh}</div>
-    <div class="dest-sub">{dest_en}<span class="sep">·</span>TPE → {iata}</div>
-  </div>
-  <div>
-    <div class="price-row">
-      <div class="price">{price}</div>
-      <div class="currency">{currency}</div>
+  <div class="row-top">
+    <div class="airline-name">{airline_label}</div>
+    <div class="flag-badge">
+      <span class="flag">{flag}</span>
+      <span class="flag-label">{dest_zh}</span>
     </div>
-    <div class="date">最佳日期：{date_zh}</div>
-    {airline_html}
+  </div>
+
+  <div class="row-mid">
+    {logo_tag}
+    <div class="route-block">
+      <div class="route">TPE → {iata}</div>
+      <div class="route-sub">{dest_en}</div>
+    </div>
+    <div class="dest-block">
+      <div class="dest-zh">{dest_zh}</div>
+      <div class="dest-tag">直飛優先</div>
+    </div>
+  </div>
+
+  <div class="row-bottom">
+    <div class="date-block">
+      <div class="date-label">最佳日期</div>
+      <div class="date-val">{date_zh}</div>
+    </div>
+    <div class="price-block">
+      <span class="price-prefix">NT$</span>
+      <span class="price">{price}</span>
+    </div>
   </div>
   <div class="watermark">flights.srv1213330.hstgr.cloud</div>
 </div>
