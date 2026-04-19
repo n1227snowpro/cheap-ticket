@@ -215,6 +215,23 @@
       display: inline-block;
       margin-top: 4px;
     }
+    .airline-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .airline-logo {
+      width: 20px;
+      height: 20px;
+      border-radius: 3px;
+      object-fit: contain;
+      background: var(--surface2);
+    }
+    .airline-name {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
 
     /* Shimmer skeleton */
     @keyframes shimmer {
@@ -415,6 +432,34 @@
 
   const FILTER_KEYS = ['all','Japan','Korea','HK','Macau','Thailand','Vietnam','SE Asia','Europe','Americas','Australia','Pacific'];
 
+  const AIRLINE_IATA = {
+    'China Airlines':'CI','EVA Air':'BR','Starlux Airlines':'JX','Starlux':'JX',
+    'AirAsia':'AK','AirAsia X':'D7','Thai Airways':'TG','Thai Lion Air':'SL',
+    'Singapore Airlines':'SQ','Scoot':'TR','Cathay Pacific':'CX',
+    'Hong Kong Express':'UO','HK Express':'UO',
+    'Korean Air':'KE','Asiana Airlines':'OZ','Asiana':'OZ',
+    'Japan Airlines':'JL','All Nippon Airways':'NH','ANA':'NH',
+    'Peach':'MM','Peach Aviation':'MM','Jetstar':'JQ','Jetstar Japan':'GK','Jetstar Asia':'3K',
+    'Vietnam Airlines':'VN','VietJet Air':'VJ','VietJet':'VJ','Bamboo Airways':'QH',
+    'Philippine Airlines':'PR','Cebu Pacific':'5J',
+    'Air France':'AF','British Airways':'BA','Lufthansa':'LH',
+    'United Airlines':'UA','American Airlines':'AA','Delta Air Lines':'DL',
+    'Qantas':'QF','Garuda Indonesia':'GA','Malaysia Airlines':'MH',
+    'Air Macau':'NX','China Eastern':'MU','China Southern':'CZ','Tigerair Taiwan':'IT',
+  };
+
+  function airlineLogoUrl(name) {
+    if (!name) return '';
+    let code = AIRLINE_IATA[name];
+    if (!code) {
+      const nl = name.toLowerCase();
+      for (const [k, v] of Object.entries(AIRLINE_IATA)) {
+        if (k.toLowerCase().includes(nl) || nl.includes(k.toLowerCase())) { code = v; break; }
+      }
+    }
+    return code ? `https://pics.avs.io/60/60/${code}.png` : '';
+  }
+
   let _lang = localStorage.getItem('ct_lang') || 'zh';
   let _currentFilter = 'all';
   let _allResults = [];
@@ -515,11 +560,18 @@
     if (status === 'ok' && r.price) {
       const staleHtml = isStale(r.cached_at)
         ? `<div class="price-stale">⚠ ${t('stale')}</div>` : '';
+      const logoUrl = airlineLogoUrl(r.airline_name);
+      const airlineHtml = r.airline_name
+        ? `<div class="airline-row">
+             ${logoUrl ? `<img class="airline-logo" src="${logoUrl}" onerror="this.style.display='none'" alt="">` : ''}
+             <span class="airline-name">${r.airline_name}</span>
+           </div>` : '';
       priceHtml = `
         <div class="card-price-area">
           <div>${fmtPrice(r.price, r.currency)}</div>
           <div class="price-date">${t('best_date')} ${fmtDate(r.best_date)}</div>
           ${staleHtml}
+          ${airlineHtml}
         </div>`;
       const zhUrl = r.booking_url + '&locale=zh_TW';
       actionHtml = `<a class="book-btn" href="${zhUrl}" target="_blank" rel="noopener">${t('book_now')}</a>

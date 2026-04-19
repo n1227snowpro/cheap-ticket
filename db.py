@@ -48,19 +48,20 @@ def init_db():
     with _conn() as c:
         c.executescript("""
             CREATE TABLE IF NOT EXISTS flight_cache (
-                iata        TEXT PRIMARY KEY,
-                destination TEXT NOT NULL,
-                region      TEXT NOT NULL,
-                flag        TEXT NOT NULL,
-                slug        TEXT NOT NULL,
-                price       REAL,
-                currency    TEXT DEFAULT 'TWD',
-                best_date   TEXT,
-                booking_url TEXT,
-                status      TEXT DEFAULT 'pending',
-                error_msg   TEXT,
-                cached_at   TEXT,
-                updated_at  TEXT
+                iata         TEXT PRIMARY KEY,
+                destination  TEXT NOT NULL,
+                region       TEXT NOT NULL,
+                flag         TEXT NOT NULL,
+                slug         TEXT NOT NULL,
+                price        REAL,
+                currency     TEXT DEFAULT 'TWD',
+                best_date    TEXT,
+                booking_url  TEXT,
+                airline_name TEXT,
+                status       TEXT DEFAULT 'pending',
+                error_msg    TEXT,
+                cached_at    TEXT,
+                updated_at   TEXT
             );
 
             CREATE TABLE IF NOT EXISTS scan_log (
@@ -72,6 +73,12 @@ def init_db():
                 trigger          TEXT DEFAULT 'auto'
             );
         """)
+        # Migrate: add airline_name column if it doesn't exist yet
+        try:
+            c.execute("ALTER TABLE flight_cache ADD COLUMN airline_name TEXT")
+        except Exception:
+            pass  # column already exists
+
         # Seed rows for all destinations (INSERT OR IGNORE)
         now = datetime.now(timezone.utc).isoformat()
         for d in DESTINATIONS:
@@ -99,20 +106,22 @@ def upsert_result(iata: str, data: dict):
     with _conn() as c:
         c.execute("""
             UPDATE flight_cache SET
-                price       = ?,
-                currency    = ?,
-                best_date   = ?,
-                booking_url = ?,
-                status      = ?,
-                error_msg   = ?,
-                cached_at   = CASE WHEN ? = 'ok' THEN ? ELSE cached_at END,
-                updated_at  = ?
+                price        = ?,
+                currency     = ?,
+                best_date    = ?,
+                booking_url  = ?,
+                airline_name = ?,
+                status       = ?,
+                error_msg    = ?,
+                cached_at    = CASE WHEN ? = 'ok' THEN ? ELSE cached_at END,
+                updated_at   = ?
             WHERE iata = ?
         """, (
             data.get("price"),
             data.get("currency", "TWD"),
             data.get("best_date"),
             data.get("booking_url"),
+            data.get("airline_name", ""),
             data.get("status", "error"),
             data.get("error_msg"),
             data.get("status", "error"), now,

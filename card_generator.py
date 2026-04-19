@@ -18,6 +18,42 @@ DATA_DIR = Path(os.environ.get(
 ))
 CARDS_DIR = DATA_DIR / "cards"
 
+# Maps common airline display names → IATA codes (for logo service)
+AIRLINE_IATA = {
+    "China Airlines": "CI", "EVA Air": "BR", "Starlux Airlines": "JX", "Starlux": "JX",
+    "AirAsia": "AK", "AirAsia X": "D7", "Thai Airways": "TG", "Thai Lion Air": "SL",
+    "Singapore Airlines": "SQ", "Scoot": "TR", "Cathay Pacific": "CX",
+    "Hong Kong Express": "UO", "HK Express": "UO",
+    "Korean Air": "KE", "Asiana Airlines": "OZ", "Asiana": "OZ",
+    "Japan Airlines": "JL", "All Nippon Airways": "NH", "ANA": "NH",
+    "Peach": "MM", "Peach Aviation": "MM", "Jetstar": "JQ",
+    "Jetstar Japan": "GK", "Jetstar Asia": "3K",
+    "Vietnam Airlines": "VN", "VietJet Air": "VJ", "VietJet": "VJ",
+    "Bamboo Airways": "QH", "Philippine Airlines": "PR", "Cebu Pacific": "5J",
+    "Air France": "AF", "British Airways": "BA", "Lufthansa": "LH",
+    "United Airlines": "UA", "American Airlines": "AA", "Delta Air Lines": "DL",
+    "Qantas": "QF", "Garuda Indonesia": "GA", "Malaysia Airlines": "MH",
+    "Air Macau": "NX", "China Eastern": "MU", "China Southern": "CZ",
+    "Tigerair Taiwan": "IT", "TransAsia": "GE",
+}
+
+
+def _airline_logo_url(airline_name: str) -> str:
+    """Return a logo URL for the airline, or empty string if unknown."""
+    if not airline_name:
+        return ""
+    # Exact match first, then partial
+    code = AIRLINE_IATA.get(airline_name)
+    if not code:
+        for name, iata in AIRLINE_IATA.items():
+            if name.lower() in airline_name.lower() or airline_name.lower() in name.lower():
+                code = iata
+                break
+    if code:
+        return f"https://pics.avs.io/100/100/{code}.png"
+    return ""
+
+
 DEST_ZH = {
     "NRT": "東京", "KIX": "大阪", "CTS": "札幌", "FUK": "福岡", "OKA": "沖繩",
     "ICN": "首爾",
@@ -53,6 +89,8 @@ def _card_html(row: dict) -> str:
     price = f"{int(row['price']):,}" if row.get("price") else "—"
     currency = row.get("currency", "TWD")
     date_zh = _fmt_date_zh(row.get("best_date", ""))
+    airline_name = row.get("airline_name", "") or ""
+    airline_logo = _airline_logo_url(airline_name)
 
     return f"""<!DOCTYPE html>
 <html>
@@ -126,6 +164,23 @@ def _card_html(row: dict) -> str:
     color: #7c83a8;
     margin-top: 6px;
   }}
+  .airline-row {{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+  }}
+  .airline-logo {{
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    object-fit: contain;
+    background: #22263a;
+  }}
+  .airline-name {{
+    font-size: 13px;
+    color: #7c83a8;
+  }}
   .watermark {{
     position: absolute;
     bottom: 14px;
@@ -152,6 +207,7 @@ def _card_html(row: dict) -> str:
       <div class="currency">{currency}</div>
     </div>
     <div class="date">最佳日期：{date_zh}</div>
+    {f'<div class="airline-row"><img class="airline-logo" src="{airline_logo}" onerror="this.style.display=\'none\'"/><span class="airline-name">{airline_name}</span></div>' if airline_name else ''}
   </div>
   <div class="watermark">flights.srv1213330.hstgr.cloud</div>
 </div>

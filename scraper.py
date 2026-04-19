@@ -58,7 +58,7 @@ def _trip_book_url(slug: str, iata: str, depdate: str) -> str:
     affiliate = config.trip_affiliate_params()
     return (
         f"https://www.trip.com/flights/{slug}/tickets-TPE-{iata}-economy-class/"
-        f"?depdate={depdate}&cabin=Y&qty=1&{affiliate}"
+        f"?depdate={depdate}&cabin=Y&qty=1&SortType=Price&{affiliate}"
     )
 
 
@@ -97,6 +97,7 @@ def scrape_destination(dest: dict) -> dict:
     slug = dest["slug"]
     best_price_twd = None
     best_date_str = None
+    best_airline = None
 
     try:
         with sync_playwright() as pw:
@@ -145,19 +146,33 @@ def scrape_destination(dest: dict) -> dict:
                         return {"iata": iata, "status": "blocked",
                                 "error_msg": "trip.com rate limited"}
 
-                    # Extract prices from all flight cards
+                    # Extract prices + airline names from all flight cards
                     raw_prices = page.evaluate("""
                         () => {
                             const items = document.querySelectorAll('[class*="FlightItem"]');
                             const out = [];
                             items.forEach(el => {
                                 const txt = el.innerText || '';
+                                let val = null, curr = null;
                                 let m = txt.match(/TWD\\s*([\\d,]+)/);
-                                if (m) { out.push({val: m[1], curr: 'TWD'}); return; }
-                                m = txt.match(/US\\$\\s*([\\d,]+)/);
-                                if (m) { out.push({val: m[1], curr: 'USD'}); return; }
-                                m = txt.match(/USD\\s*([\\d,]+)/);
-                                if (m) { out.push({val: m[1], curr: 'USD'}); }
+                                if (m) { val = m[1]; curr = 'TWD'; }
+                                else {
+                                    m = txt.match(/US\\$\\s*([\\d,]+)/);
+                                    if (m) { val = m[1]; curr = 'USD'; }
+                                    else {
+                                        m = txt.match(/USD\\s*([\\d,]+)/);
+                                        if (m) { val = m[1]; curr = 'USD'; }
+                                    }
+                                }
+                                if (!val) return;
+
+                                // Airline name: first non-empty line of innerText
+                                const lines = txt.split('\\n')
+                                    .map(s => s.trim())
+                                    .filter(s => s.length > 1 && !/^[\\d:→\\-]/.test(s));
+                                const airline = lines[0] || '';
+
+                                out.push({val, curr, airline});
                             });
                             return out;
                         }
@@ -168,25 +183,25 @@ def scrape_destination(dest: dict) -> dict:
                         page.close()
                         continue
 
-                    # Convert everything to TWD
+                    # Convert everything to TWD and find cheapest
                     rate = _get_usd_twd_rate()
-                    prices_twd = []
+                    converted = []
                     for p in raw_prices:
                         val = float(p["val"].replace(",", ""))
-                        if p["curr"] == "USD":
-                            prices_twd.append(round(val * rate))
-                        else:
-                            prices_twd.append(round(val))
+                        twd = round(val * rate) if p["curr"] == "USD" else round(val)
+                        converted.append((twd, p.get("airline", "")))
 
-                    cheapest = min(prices_twd)
+                    converted.sort(key=lambda x: x[0])
+                    cheapest, cheapest_airline = converted[0]
                     logger.info(
                         f"[{iata}] {dep_date}: TWD {cheapest:,} "
-                        f"(from {raw_prices[0]['curr']}, {len(raw_prices)} flights)"
+                        f"({cheapest_airline}, {len(raw_prices)} flights)"
                     )
 
                     if best_price_twd is None or cheapest < best_price_twd:
                         best_price_twd = cheapest
                         best_date_str = dep_date
+                        best_airline = cheapest_airline
 
                 except Exception as e:
                     logger.warning(f"[{iata}] Error on {dep_date}: {e}")
@@ -207,13 +222,14 @@ def scrape_destination(dest: dict) -> dict:
                 "error_msg": "No flight prices found on trip.com"}
 
     booking_url = _trip_book_url(slug, iata, best_date_str)
-    logger.info(f"[{iata}] Best: TWD {best_price_twd:,} on {best_date_str}")
+    logger.info(f"[{iata}] Best: TWD {best_price_twd:,} on {best_date_str} ({best_airline})")
     return {
         "iata": iata,
         "price": float(best_price_twd),
         "currency": "TWD",
         "best_date": best_date_str,
         "booking_url": booking_url,
+        "airline_name": best_airline or "",
         "status": "ok",
         "error_msg": None,
     }
