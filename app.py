@@ -195,4 +195,4 @@ if __name__ == "__main__":
     db.init_db()
     scheduler.start(app)
     logger.info("CheapTicket starting on http://localhost:9002")
-    app.run(debug=False, port=9002, threaded=True)
+    app.run(host="0.0.0.0", debug=False, port=9002, threaded=True)
