@@ -166,12 +166,16 @@ def scrape_destination(dest: dict) -> dict:
                                 }
                                 if (!val) return;
 
-                                // Method 1: airline logo img alt attribute (most reliable)
+                                // Method 1: airline logo img alt attribute
+                                // Skip baggage/amenity icons — only use if alt looks like an airline name
                                 let airline = '';
+                                const SKIP_ALT = /baggage|carry.on|carry on|meal|wifi|seat|luggage|included|free|kg|lb|checked|amenity/i;
                                 const imgs = el.querySelectorAll('img[alt]');
                                 for (const img of imgs) {
                                     const a = (img.alt || '').trim();
-                                    if (a.length > 2 && !/^\\d/.test(a)) { airline = a; break; }
+                                    if (a.length > 2 && !/^\\d/.test(a) && !SKIP_ALT.test(a)) {
+                                        airline = a; break;
+                                    }
                                 }
 
                                 // Method 2: element with airline/carrier in class name
