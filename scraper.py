@@ -166,10 +166,23 @@ def scrape_destination(dest: dict) -> dict:
                                 }
                                 if (!val) return;
 
-                                // Airline name: first non-empty line of innerText
+                                // Airline name: first non-empty line that isn't a badge/label
+                                const SKIP = new Set([
+                                    'cheapest','cheapest nonstop','cheapest direct',
+                                    'best','fastest','recommended','nonstop','direct',
+                                    'stop','1 stop','2 stops','book','sold out','ow','rt',
+                                ]);
                                 const lines = txt.split('\\n')
                                     .map(s => s.trim())
-                                    .filter(s => s.length > 1 && !/^[\\d:→\\-]/.test(s));
+                                    .filter(s => {
+                                        if (s.length < 2) return false;
+                                        if (/^[\\d:→\\-\\+]/.test(s)) return false;
+                                        const sl = s.toLowerCase();
+                                        if (SKIP.has(sl)) return false;
+                                        if (sl.startsWith('cheapest')) return false;
+                                        if (/^\\d+h/.test(sl)) return false; // duration like "2h 30m"
+                                        return true;
+                                    });
                                 const airline = lines[0] || '';
 
                                 out.push({val, curr, airline});
