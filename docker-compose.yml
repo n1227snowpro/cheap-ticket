@@ -3,13 +3,32 @@ version: '3.8'
 services:
   cheapticket:
     build: .
-    ports:
-      - "9002:9002"
+    image: cheapticket:latest
+    container_name: cheapticket
+    restart: unless-stopped
+    networks:
+      - n8n_default
     volumes:
       - cheapticket_data:/app/data
     environment:
       - CHEAPTICKET_DATA=/app/data
-    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.cheapticket.rule=Host(`flights.srv1213330.hstgr.cloud`)
+      - traefik.http.routers.cheapticket.tls=true
+      - traefik.http.routers.cheapticket.entrypoints=web,websecure
+      - traefik.http.routers.cheapticket.tls.certresolver=mytlschallenge
+      - traefik.http.services.cheapticket.loadbalancer.server.port=9002
+      - traefik.http.middlewares.cheapticket-headers.headers.SSLRedirect=true
+      - traefik.http.middlewares.cheapticket-headers.headers.STSSeconds=315360000
+      - traefik.http.middlewares.cheapticket-headers.headers.forceSTSHeader=true
+      - traefik.http.routers.cheapticket.middlewares=cheapticket-headers@docker
+      - traefik.docker.network=n8n_default
+
+networks:
+  n8n_default:
+    external: true
 
 volumes:
   cheapticket_data:
+    driver: local
