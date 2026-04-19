@@ -2,9 +2,10 @@ import json
 import logging
 from pathlib import Path
 
-from flask import Flask, Response, jsonify, render_template, request, stream_with_context
+from flask import Flask, Response, jsonify, render_template, request, send_file, stream_with_context
 
 import config
+import card_generator
 import db
 import scheduler
 import scraper
@@ -148,6 +149,16 @@ def api_query():
     if not row:
         return jsonify({"error": "Failed to fetch data", "iata": iata}), 500
 
+    # Generate card image (only if price data is available)
+    image_url = None
+    if row.get("status") == "ok" and row.get("price"):
+        try:
+            card_path = card_generator.generate_card(row)
+            base = request.host_url.rstrip("/")
+            image_url = f"{base}/cards/{card_path.name}"
+        except Exception as e:
+            logger.warning(f"Card generation failed for {iata}: {e}")
+
     return jsonify({
         "destination": row["destination"],
         "iata": row["iata"],
@@ -160,7 +171,18 @@ def api_query():
         "status": row["status"],
         "cached_at": row["cached_at"],
         "fresh": db.is_cache_fresh(iata, max_age_hours=12),
+        "image_url": image_url,
     })
+
+
+# ── Card images ──────────────────────────────────────────────────────────────
+
+@app.route("/cards/<filename>")
+def serve_card(filename):
+    card_path = card_generator.CARDS_DIR / filename
+    if not card_path.exists() or card_path.suffix != ".png":
+        return jsonify({"error": "Card not found or expired"}), 404
+    return send_file(card_path, mimetype="image/png")
 
 
 # ── Settings ─────────────────────────────────────────────────────────────────
