@@ -166,24 +166,39 @@ def scrape_destination(dest: dict) -> dict:
                                 }
                                 if (!val) return;
 
-                                // Airline name: first non-empty line that isn't a badge/label
-                                const SKIP = new Set([
-                                    'cheapest','cheapest nonstop','cheapest direct',
-                                    'best','fastest','recommended','nonstop','direct',
-                                    'stop','1 stop','2 stops','book','sold out','ow','rt',
-                                ]);
-                                const lines = txt.split('\\n')
-                                    .map(s => s.trim())
-                                    .filter(s => {
-                                        if (s.length < 2) return false;
-                                        if (/^[\\d:→\\-\\+]/.test(s)) return false;
-                                        const sl = s.toLowerCase();
-                                        if (SKIP.has(sl)) return false;
-                                        if (sl.startsWith('cheapest')) return false;
-                                        if (/^\\d+h/.test(sl)) return false; // duration like "2h 30m"
-                                        return true;
-                                    });
-                                const airline = lines[0] || '';
+                                // Method 1: airline logo img alt attribute (most reliable)
+                                let airline = '';
+                                const imgs = el.querySelectorAll('img[alt]');
+                                for (const img of imgs) {
+                                    const a = (img.alt || '').trim();
+                                    if (a.length > 2 && !/^\\d/.test(a)) { airline = a; break; }
+                                }
+
+                                // Method 2: element with airline/carrier in class name
+                                if (!airline) {
+                                    const sels = [
+                                        '[class*="airline-name"]','[class*="airlineName"]',
+                                        '[class*="AirlineName"]','[class*="carrier"]',
+                                        '[class*="Carrier"]','[class*="airlineInfo"]'
+                                    ];
+                                    for (const sel of sels) {
+                                        const el2 = el.querySelector(sel);
+                                        if (el2) { airline = el2.innerText.trim(); break; }
+                                    }
+                                }
+
+                                // Method 3: parse innerText — skip all non-airline lines
+                                if (!airline) {
+                                    const SKIP_RE = /cheapest|baggage|carry.on|included|nonstop|non-stop|direct|fastest|best|recommended|stop|book|sold|free|meal|wifi|seat|refund|exchange|change|cancel|^\+?\d|^[a-z]{2,3}$|h\s*\d*m|→|tpe|twd|us\$/i;
+                                    const AIRLINE_RE = /air|airlines|airways|aviation|express|pacific|jet|lion|tiger|peach|scoot|starlux|qantas|cathay|asiana|korean|vietnam|bamboo|cebu|garuda|malaysia|lufthansa|delta|united|american|british|france/i;
+                                    const lines = txt.split('\\n').map(s => s.trim()).filter(s => s.length > 2);
+                                    for (const line of lines) {
+                                        if (SKIP_RE.test(line)) continue;
+                                        if (AIRLINE_RE.test(line) || /^[A-Z][a-z]+ [A-Z]/.test(line)) {
+                                            airline = line; break;
+                                        }
+                                    }
+                                }
 
                                 out.push({val, curr, airline});
                             });
