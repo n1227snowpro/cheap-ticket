@@ -128,12 +128,24 @@ def api_query():
         return jsonify({"error": "destination is required"}), 400
 
     dest = _lookup_destination(raw)
+    _dest_zh_quick = {
+        "NRT": "東京", "KIX": "大阪", "CTS": "札幌", "FUK": "福岡", "OKA": "沖繩",
+        "ICN": "首爾", "HKG": "香港", "MFM": "澳門", "BKK": "曼谷", "HKT": "普吉島",
+        "SGN": "胡志明市", "HAN": "河內", "DAD": "峴港", "SIN": "新加坡", "DPS": "峇里島",
+        "MNL": "馬尼拉", "CEB": "宿霧", "KUL": "吉隆坡", "CDG": "巴黎", "LHR": "倫敦",
+        "LAX": "洛杉磯", "SYD": "雪梨", "GUM": "關島",
+    }
     if not dest:
         return jsonify({
             "error": "Destination not found",
             "query": raw,
             "available": [
-                {"iata": d["iata"], "destination": d["destination"], "flag": d["flag"]}
+                {
+                    "iata": d["iata"],
+                    "destination": d["destination"],
+                    "destination_zh": _dest_zh_quick.get(d["iata"], d["destination"]),
+                    "flag": d["flag"],
+                }
                 for d in db.DESTINATIONS
             ],
         }), 404
@@ -159,14 +171,33 @@ def api_query():
         except Exception as e:
             logger.warning(f"Card generation failed for {iata}: {e}")
 
+    dest_zh_map = {
+        "NRT": "東京", "KIX": "大阪", "CTS": "札幌", "FUK": "福岡", "OKA": "沖繩",
+        "ICN": "首爾",
+        "HKG": "香港", "MFM": "澳門",
+        "BKK": "曼谷", "HKT": "普吉島",
+        "SGN": "胡志明市", "HAN": "河內", "DAD": "峴港",
+        "SIN": "新加坡", "DPS": "峇里島", "MNL": "馬尼拉", "CEB": "宿霧", "KUL": "吉隆坡",
+        "CDG": "巴黎", "LHR": "倫敦", "LAX": "洛杉磯", "SYD": "雪梨",
+        "GUM": "關島",
+    }
+    region_zh_map = {
+        "Japan": "日本", "Korea": "韓國", "HK": "香港", "Macau": "澳門",
+        "Thailand": "泰國", "Vietnam": "越南", "SE Asia": "東南亞",
+        "Europe": "歐洲", "Americas": "美洲", "Australia": "澳洲", "Pacific": "太平洋",
+    }
+
     return jsonify({
         "destination": row["destination"],
+        "destination_zh": dest_zh_map.get(row["iata"], row["destination"]),
         "iata": row["iata"],
         "flag": row["flag"],
         "region": row["region"],
+        "region_zh": region_zh_map.get(row["region"], row["region"]),
         "price": row["price"],
         "currency": row["currency"],
         "best_date": row["best_date"],
+        "airline_name": row.get("airline_name", ""),
         "booking_url": row["booking_url"],
         "status": row["status"],
         "cached_at": row["cached_at"],
