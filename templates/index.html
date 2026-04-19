@@ -1,478 +1,724 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Low-Content Book Generator</title>
+  <title>CheapTicket — 台北出發最低機票</title>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
+    :root {
+      --bg:       #0f1117;
+      --surface:  #1a1d27;
+      --surface2: #22263a;
+      --border:   #2e3250;
+      --accent:   #0ea5e9;
+      --accent2:  #38bdf8;
+      --text:     #e8eaf6;
+      --muted:    #7c83a8;
+      --green:    #4ade80;
+      --red:      #f87171;
+      --yellow:   #facc15;
+      --radius:   14px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #f0f2f5;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Microsoft JhengHei", sans-serif;
       min-height: 100vh;
+    }
+
+    /* Header */
+    header {
+      background: linear-gradient(135deg, #1a1d27 0%, #13152b 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 20px 32px;
       display: flex;
       align-items: center;
-      justify-content: center;
-      padding: 24px;
+      gap: 16px;
+      flex-wrap: wrap;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      backdrop-filter: blur(12px);
     }
-
-    .card {
-      background: #fff;
-      border-radius: 16px;
-      box-shadow: 0 4px 24px rgba(0,0,0,.08);
-      width: 100%;
-      max-width: 520px;
-      padding: 40px;
-    }
-
     .logo {
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+    .header-title { font-size: 1.25rem; font-weight: 700; }
+    .header-sub { font-size: 0.8rem; color: var(--muted); }
+    .header-meta {
+      margin-left: auto;
       display: flex;
       align-items: center;
       gap: 12px;
-      margin-bottom: 8px;
+      flex-wrap: wrap;
     }
+    .meta-label { font-size: 0.78rem; color: var(--muted); }
+    .meta-value { font-size: 0.78rem; color: var(--text); }
+    .btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 7px 16px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex; align-items: center; gap: 6px;
+      transition: opacity .15s;
+    }
+    .btn:hover { opacity: .85; }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
 
-    .logo-icon {
-      width: 44px;
-      height: 44px;
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
-      border-radius: 10px;
+    /* Language toggle */
+    .lang-toggle {
       display: flex;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .lang-btn {
+      padding: 6px 11px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      transition: all .15s;
+    }
+    .lang-btn.active {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    /* Scanning banner */
+    #scan-banner {
+      display: none;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 32px;
+      gap: 12px;
       align-items: center;
-      justify-content: center;
-      font-size: 22px;
     }
-
-    h1 {
-      font-size: 22px;
-      font-weight: 700;
-      color: #111;
+    #scan-banner.visible { display: flex; }
+    .progress-bar-wrap {
+      flex: 1;
+      height: 6px;
+      background: var(--surface2);
+      border-radius: 99px;
+      overflow: hidden;
+      max-width: 300px;
     }
-
-    .subtitle {
-      color: #6b7280;
-      font-size: 14px;
-      margin-bottom: 32px;
-    }
-
-    /* Drop zone */
-    .drop-zone {
-      border: 2px dashed #d1d5db;
-      border-radius: 12px;
-      padding: 36px 24px;
-      text-align: center;
-      cursor: pointer;
-      transition: border-color .2s, background .2s;
-      position: relative;
-      margin-bottom: 24px;
-    }
-
-    .drop-zone:hover,
-    .drop-zone.drag-over {
-      border-color: #6366f1;
-      background: #f5f3ff;
-    }
-
-    .drop-zone input[type="file"] {
-      position: absolute;
-      inset: 0;
-      opacity: 0;
-      cursor: pointer;
-      width: 100%;
+    .progress-bar-fill {
       height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 99px;
+      transition: width .4s ease;
+    }
+    .scan-label { font-size: 0.8rem; color: var(--muted); }
+
+    /* Main */
+    main { padding: 28px 32px; }
+
+    /* Filters */
+    .filters {
+      display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px;
+    }
+    .filter-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .filter-btn:hover { border-color: var(--accent); color: var(--text); }
+    .filter-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
     }
 
-    .drop-icon { font-size: 36px; margin-bottom: 8px; }
-
-    .drop-zone .drop-text {
-      font-size: 14px;
-      color: #374151;
-      font-weight: 500;
+    /* Cards grid */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 16px;
     }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transition: border-color .2s, transform .2s;
+      position: relative;
+      overflow: hidden;
+    }
+    .card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .card[data-status="blocked"] { border-color: var(--yellow); }
+    .card[data-status="error"],
+    .card[data-status="no_data"] { border-color: var(--red); }
 
-    .drop-zone .drop-hint {
-      font-size: 12px;
-      color: #9ca3af;
+    .card-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+    }
+    .card-flag { font-size: 2rem; line-height: 1; }
+    .card-region {
+      font-size: 0.7rem;
+      color: var(--muted);
+      background: var(--surface2);
+      border-radius: 6px;
+      padding: 3px 8px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+    .card-name { font-size: 1.1rem; font-weight: 700; }
+    .card-name-sub { font-size: 0.78rem; color: var(--muted); margin-top: 1px; }
+
+    /* Price area */
+    .card-price-area { flex: 1; }
+    .price-amount {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: var(--green);
+      letter-spacing: -.03em;
+    }
+    .price-currency {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-left: 4px;
+    }
+    .price-date {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .price-stale {
+      font-size: 0.7rem;
+      color: var(--yellow);
+      background: rgba(250,204,21,.1);
+      border-radius: 4px;
+      padding: 2px 6px;
+      display: inline-block;
       margin-top: 4px;
     }
 
-    /* Preview */
-    #preview-wrap {
-      display: none;
-      align-items: center;
-      gap: 12px;
-      background: #f9fafb;
-      border-radius: 10px;
-      padding: 12px 16px;
-      margin-bottom: 24px;
+    /* Shimmer skeleton */
+    @keyframes shimmer {
+      0% { background-position: -400px 0; }
+      100% { background-position: 400px 0; }
     }
-
-    #preview-wrap img {
-      width: 52px;
-      height: 52px;
-      object-fit: cover;
+    .skeleton {
+      background: linear-gradient(90deg, var(--surface2) 25%, var(--border) 50%, var(--surface2) 75%);
+      background-size: 800px 100%;
+      animation: shimmer 1.5s infinite;
       border-radius: 6px;
-      border: 1px solid #e5e7eb;
     }
+    .skeleton-price { height: 36px; width: 120px; }
+    .skeleton-date  { height: 14px; width: 90px; margin-top: 6px; }
 
-    .preview-info { flex: 1; overflow: hidden; }
-    .preview-name { font-size: 13px; font-weight: 600; color: #111; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .preview-size { font-size: 12px; color: #6b7280; }
-
-    .remove-btn {
-      background: none;
-      border: none;
-      color: #9ca3af;
-      cursor: pointer;
-      font-size: 18px;
-      line-height: 1;
-      padding: 4px;
-      border-radius: 4px;
-      transition: color .15s;
+    /* Status badges */
+    .status-badge {
+      font-size: 0.72rem;
+      font-weight: 600;
+      border-radius: 6px;
+      padding: 3px 8px;
+      display: inline-block;
     }
-    .remove-btn:hover { color: #ef4444; }
+    .badge-error   { background: rgba(248,113,113,.15); color: var(--red); }
+    .badge-blocked { background: rgba(250,204,21,.15);  color: var(--yellow); }
 
-    /* Form fields */
-    .field { margin-bottom: 20px; }
-
-    label {
+    /* Book button */
+    .book-btn {
       display: block;
-      font-size: 13px;
-      font-weight: 600;
-      color: #374151;
-      margin-bottom: 6px;
-    }
-
-    input[type="number"],
-    input[type="text"] {
-      width: 100%;
-      padding: 10px 14px;
-      border: 1.5px solid #d1d5db;
-      border-radius: 8px;
-      font-size: 14px;
-      color: #111;
-      outline: none;
-      transition: border-color .2s;
-    }
-
-    input[type="number"]:focus,
-    input[type="text"]:focus {
-      border-color: #6366f1;
-    }
-
-    .field-hint { font-size: 12px; color: #9ca3af; margin-top: 4px; }
-
-    /* Page presets */
-    .presets {
-      display: flex;
-      gap: 8px;
-      margin-top: 8px;
-      flex-wrap: wrap;
-    }
-
-    .preset-btn {
-      padding: 4px 12px;
-      border: 1.5px solid #d1d5db;
-      border-radius: 20px;
-      background: #fff;
-      font-size: 12px;
-      font-weight: 500;
-      color: #374151;
-      cursor: pointer;
-      transition: border-color .15s, background .15s, color .15s;
-    }
-
-    .preset-btn:hover,
-    .preset-btn.active {
-      border-color: #6366f1;
-      background: #ede9fe;
-      color: #6366f1;
-    }
-
-    /* Generate button */
-    .generate-btn {
-      width: 100%;
-      padding: 13px;
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      text-align: center;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
       color: #fff;
-      border: none;
-      border-radius: 10px;
-      font-size: 15px;
-      font-weight: 600;
+      text-decoration: none;
+      border-radius: 9px;
+      padding: 9px 0;
+      font-size: 0.85rem;
+      font-weight: 700;
+      transition: opacity .15s;
+    }
+    .book-btn:hover { opacity: .85; }
+    .book-ps {
+      font-size: 11px;
+      color: var(--muted);
+      text-align: center;
+      margin-top: 6px;
+      line-height: 1.4;
+    }
+    .retry-btn {
+      display: block;
+      text-align: center;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 9px;
+      padding: 8px 0;
+      font-size: 0.82rem;
       cursor: pointer;
-      transition: opacity .2s, transform .1s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
+      transition: border-color .15s, color .15s;
+    }
+    .retry-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    .global-msg {
+      text-align: center;
+      color: var(--muted);
+      padding: 48px 0;
+      font-size: 0.9rem;
     }
 
-    .generate-btn:hover:not(:disabled) { opacity: .9; }
-    .generate-btn:active:not(:disabled) { transform: scale(.98); }
-    .generate-btn:disabled { opacity: .6; cursor: not-allowed; }
-
-    /* Progress */
-    #progress-wrap {
+    #stale-warning {
       display: none;
-      margin-top: 20px;
-    }
-
-    .progress-bar-bg {
-      background: #e5e7eb;
-      border-radius: 99px;
-      height: 8px;
-      overflow: hidden;
-      margin-bottom: 8px;
-    }
-
-    .progress-bar {
-      height: 100%;
-      background: linear-gradient(90deg, #6366f1, #8b5cf6);
-      border-radius: 99px;
-      width: 0%;
-      transition: width .4s ease;
-    }
-
-    .progress-label { font-size: 12px; color: #6b7280; text-align: center; }
-
-    /* Toast */
-    #toast {
-      display: none;
-      margin-top: 20px;
-      padding: 12px 16px;
+      margin-bottom: 20px;
+      background: rgba(250,204,21,.08);
+      border: 1px solid rgba(250,204,21,.3);
       border-radius: 10px;
-      font-size: 14px;
-      font-weight: 500;
+      padding: 10px 16px;
+      font-size: 0.82rem;
+      color: var(--yellow);
     }
-
-    #toast.error  { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
-    #toast.success { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+    #stale-warning.visible { display: block; }
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
 
-<div class="card">
-  <div class="logo">
-    <div class="logo-icon">📖</div>
-    <h1>Low-Content Book Generator</h1>
+<header>
+  <div class="logo">✈</div>
+  <div>
+    <div class="header-title">CheapTicket</div>
+    <div class="header-sub" id="hdr-sub"></div>
   </div>
-  <p class="subtitle">Upload a single page, set the count, and download your PDF.</p>
-
-  <!-- Drop zone -->
-  <div class="drop-zone" id="drop-zone">
-    <input type="file" id="file-input" accept=".jpg,.jpeg,.png" />
-    <div class="drop-icon">🖼️</div>
-    <div class="drop-text">Drop your page here or click to browse</div>
-    <div class="drop-hint">JPG or PNG — max 50 MB</div>
-  </div>
-
-  <!-- Preview -->
-  <div id="preview-wrap">
-    <img id="preview-img" src="" alt="preview" />
-    <div class="preview-info">
-      <div class="preview-name" id="preview-name"></div>
-      <div class="preview-size" id="preview-size"></div>
+  <div class="header-meta">
+    <div>
+      <div class="meta-label" id="lbl-last-updated"></div>
+      <div class="meta-value" id="last-updated">—</div>
     </div>
-    <button class="remove-btn" id="remove-btn" title="Remove">✕</button>
-  </div>
-
-  <!-- Page count -->
-  <div class="field">
-    <label for="pages-input">Number of Pages</label>
-    <input type="number" id="pages-input" value="100" min="1" max="1000" />
-    <div class="presets">
-      <button class="preset-btn" data-val="50">50</button>
-      <button class="preset-btn active" data-val="100">100</button>
-      <button class="preset-btn" data-val="120">120</button>
-      <button class="preset-btn" data-val="150">150</button>
-      <button class="preset-btn" data-val="200">200</button>
+    <div>
+      <div class="meta-label" id="lbl-next-refresh"></div>
+      <div class="meta-value" id="next-refresh">—</div>
     </div>
+    <div class="lang-toggle">
+      <button class="lang-btn" id="btn-en" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" id="btn-zh" onclick="setLang('zh')">繁中</button>
+    </div>
+    <button class="btn" id="refresh-btn" onclick="triggerRefresh()">
+      <span id="refresh-icon">↻</span> <span id="lbl-refresh"></span>
+    </button>
   </div>
+</header>
 
-  <!-- Output name -->
-  <div class="field">
-    <label for="output-name">Output Filename <span style="font-weight:400;color:#9ca3af">(optional)</span></label>
-    <input type="text" id="output-name" placeholder="e.g. my_journal" />
-    <div class="field-hint">Leave blank to auto-name. .pdf will be appended automatically.</div>
+<div id="scan-banner">
+  <div class="scan-label" id="scan-label"></div>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
   </div>
-
-  <!-- Button -->
-  <button class="generate-btn" id="generate-btn" disabled>
-    <span id="btn-label">Generate PDF</span>
-  </button>
-
-  <!-- Progress -->
-  <div id="progress-wrap">
-    <div class="progress-bar-bg"><div class="progress-bar" id="progress-bar"></div></div>
-    <div class="progress-label" id="progress-label">Generating…</div>
-  </div>
-
-  <!-- Toast -->
-  <div id="toast"></div>
+  <div class="scan-label" id="scan-count"></div>
 </div>
 
+<main>
+  <div id="stale-warning"></div>
+
+  <div class="filters" id="filters"></div>
+  <div class="grid" id="card-grid"></div>
+  <div class="global-msg hidden" id="global-msg"></div>
+</main>
+
 <script>
-  const dropZone    = document.getElementById("drop-zone");
-  const fileInput   = document.getElementById("file-input");
-  const previewWrap = document.getElementById("preview-wrap");
-  const previewImg  = document.getElementById("preview-img");
-  const previewName = document.getElementById("preview-name");
-  const previewSize = document.getElementById("preview-size");
-  const removeBtn   = document.getElementById("remove-btn");
-  const pagesInput  = document.getElementById("pages-input");
-  const outputName  = document.getElementById("output-name");
-  const generateBtn = document.getElementById("generate-btn");
-  const btnLabel    = document.getElementById("btn-label");
-  const progressWrap = document.getElementById("progress-wrap");
-  const progressBar  = document.getElementById("progress-bar");
-  const progressLabel = document.getElementById("progress-label");
-  const toast        = document.getElementById("toast");
+  // ── i18n ───────────────────────────────────────────────────────────────
 
-  let selectedFile = null;
+  const STRINGS = {
+    en: {
+      hdr_sub:      'Cheapest flights from Taipei (TPE) — 90-day window',
+      last_updated: 'Last updated',
+      next_refresh: 'Next refresh',
+      refresh:      'Refresh',
+      scanning:     'Scanning…',
+      scanned:      n => `Scanned: ${n}`,
+      stale_warn:   '⚠ Some data may be outdated — consider refreshing.',
+      best_date:    'Best date:',
+      book_now:     'Book Now →',
+      scanning_card:'Scanning…',
+      rate_limited: '⚠ Rate limited',
+      no_data:      'No data',
+      err:          '✗ Error',
+      stale:        'stale data',
+      last_seen:    'Last seen:',
+      retry:        '↺ Retry',
+      no_match:     'No destinations match this filter.',
+      time_in:      (h, m) => `in ${h}h ${m}m`,
+      time_ago:     (h, m) => `${h}h ${m}m ago`,
+      time_now:     'just now',
+      filters: ['All','🇯🇵 Japan','🇰🇷 Korea','🇭🇰 HK','🇲🇴 Macau','🇹🇭 Thailand',
+                '🇻🇳 Vietnam','🌏 SE Asia','🌍 Europe','🌎 Americas','🦘 Australia','🏝 Pacific'],
+    },
+    zh: {
+      hdr_sub:      '台北 (TPE) 出發 — 90天最低機票價格',
+      last_updated: '最後更新',
+      next_refresh: '下次更新',
+      refresh:      '重新整理',
+      scanning:     '搜尋中…',
+      scanned:      n => `已完成：${n}`,
+      stale_warn:   '⚠ 部分資料可能已過時，建議重新整理。',
+      best_date:    '最佳日期：',
+      book_now:     '立即搶購 →',
+      scanning_card:'搜尋中…',
+      rate_limited: '⚠ 請求受限',
+      no_data:      '無資料',
+      err:          '✗ 錯誤',
+      stale:        '舊資料',
+      last_seen:    '上次記錄：',
+      retry:        '↺ 重試',
+      no_match:     '沒有符合此篩選條件的目的地。',
+      time_in:      (h, m) => `${h}小時${m}分後`,
+      time_ago:     (h, m) => `${h}小時${m}分前`,
+      time_now:     '剛剛',
+      filters: ['全部','🇯🇵 日本','🇰🇷 韓國','🇭🇰 香港','🇲🇴 澳門','🇹🇭 泰國',
+                '🇻🇳 越南','🌏 東南亞','🌍 歐洲','🌎 美洲','🦘 澳洲','🏝 太平洋'],
+    },
+  };
 
-  // Drag-over style
-  dropZone.addEventListener("dragover",  e => { e.preventDefault(); dropZone.classList.add("drag-over"); });
-  dropZone.addEventListener("dragleave", () => dropZone.classList.remove("drag-over"));
-  dropZone.addEventListener("drop", e => {
-    e.preventDefault();
-    dropZone.classList.remove("drag-over");
-    const file = e.dataTransfer.files[0];
-    if (file) setFile(file);
-  });
+  // Destination names in Traditional Chinese
+  const DEST_ZH = {
+    NRT:'東京', KIX:'大阪', CTS:'札幌', FUK:'福岡', OKA:'沖繩',
+    ICN:'首爾',
+    HKG:'香港', MFM:'澳門',
+    BKK:'曼谷', HKT:'普吉島',
+    SGN:'胡志明市', HAN:'河內', DAD:'峴港',
+    SIN:'新加坡', DPS:'峇里島', MNL:'馬尼拉', CEB:'宿霧', KUL:'吉隆坡',
+    CDG:'巴黎', LHR:'倫敦', LAX:'洛杉磯', SYD:'雪梨',
+    GUM:'關島',
+  };
 
-  fileInput.addEventListener("change", () => {
-    if (fileInput.files[0]) setFile(fileInput.files[0]);
-  });
+  // Region labels in Traditional Chinese
+  const REGION_ZH = {
+    Japan:'日本', Korea:'韓國', HK:'香港', Macau:'澳門', Thailand:'泰國',
+    Vietnam:'越南', 'SE Asia':'東南亞', Europe:'歐洲',
+    Americas:'美洲', Australia:'澳洲', Pacific:'太平洋',
+  };
 
-  function setFile(file) {
-    const ext = file.name.split(".").pop().toLowerCase();
-    if (!["jpg","jpeg","png"].includes(ext)) {
-      showToast("Only JPG and PNG files are supported.", "error");
-      return;
-    }
-    selectedFile = file;
-    const url = URL.createObjectURL(file);
-    previewImg.src = url;
-    previewName.textContent = file.name;
-    previewSize.textContent = formatBytes(file.size);
-    previewWrap.style.display = "flex";
-    dropZone.style.display = "none";
-    generateBtn.disabled = false;
-    hideToast();
+  const FILTER_KEYS = ['all','Japan','Korea','HK','Macau','Thailand','Vietnam','SE Asia','Europe','Americas','Australia','Pacific'];
+
+  let _lang = localStorage.getItem('ct_lang') || 'zh';
+  let _currentFilter = 'all';
+  let _allResults = [];
+  let _sse = null;
+  let _statusInterval = null;
+
+  function t(key, ...args) {
+    const s = STRINGS[_lang][key];
+    return typeof s === 'function' ? s(...args) : s;
   }
 
-  removeBtn.addEventListener("click", () => {
-    selectedFile = null;
-    fileInput.value = "";
-    previewWrap.style.display = "none";
-    dropZone.style.display = "block";
-    generateBtn.disabled = true;
-  });
+  function setLang(lang) {
+    _lang = lang;
+    localStorage.setItem('ct_lang', lang);
+    applyLang();
+    renderGrid(_allResults);   // re-render cards with new language
+  }
 
-  // Preset buttons
-  document.querySelectorAll(".preset-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      document.querySelectorAll(".preset-btn").forEach(b => b.classList.remove("active"));
-      btn.classList.add("active");
-      pagesInput.value = btn.dataset.val;
+  function applyLang() {
+    document.documentElement.lang = _lang === 'zh' ? 'zh-Hant' : 'en';
+    document.getElementById('hdr-sub').textContent       = t('hdr_sub');
+    document.getElementById('lbl-last-updated').textContent = t('last_updated');
+    document.getElementById('lbl-next-refresh').textContent = t('next_refresh');
+    document.getElementById('lbl-refresh').textContent   = t('refresh');
+    document.getElementById('stale-warning').textContent = t('stale_warn');
+
+    // Lang toggle highlight
+    document.getElementById('btn-en').classList.toggle('active', _lang === 'en');
+    document.getElementById('btn-zh').classList.toggle('active', _lang === 'zh');
+
+    // Rebuild filter buttons
+    const fbar = document.getElementById('filters');
+    fbar.innerHTML = '';
+    FILTER_KEYS.forEach((key, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'filter-btn' + (key === _currentFilter ? ' active' : '');
+      btn.textContent = t('filters')[i];
+      btn.onclick = () => setFilter(key, btn);
+      fbar.appendChild(btn);
     });
-  });
+  }
 
-  pagesInput.addEventListener("input", () => {
-    document.querySelectorAll(".preset-btn").forEach(b => {
-      b.classList.toggle("active", b.dataset.val === pagesInput.value);
-    });
-  });
+  // ── Formatting helpers ─────────────────────────────────────────────────
 
-  // Generate
-  generateBtn.addEventListener("click", async () => {
-    if (!selectedFile) return;
+  function fmtPrice(price, currency) {
+    if (!price) return null;
+    const num = Math.round(price).toLocaleString();
+    return `<span class="price-amount">${num}</span><span class="price-currency">${currency || 'TWD'}</span>`;
+  }
 
-    const pages = parseInt(pagesInput.value);
-    if (isNaN(pages) || pages < 1 || pages > 1000) {
-      showToast("Pages must be between 1 and 1000.", "error");
-      return;
-    }
+  function fmtDate(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr + 'T00:00:00');
+    const locale = _lang === 'zh' ? 'zh-TW' : 'en-US';
+    return d.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' });
+  }
 
-    // UI: loading state
-    generateBtn.disabled = true;
-    btnLabel.textContent = "Generating…";
-    progressWrap.style.display = "block";
-    hideToast();
-    animateProgress();
+  function fmtRelativeTime(isoStr) {
+    if (!isoStr) return '—';
+    const d = new Date(isoStr);
+    const diffMs = d - Date.now();
+    const diffH = Math.floor(Math.abs(diffMs) / 3600000);
+    const diffM = Math.floor((Math.abs(diffMs) % 3600000) / 60000);
+    if (diffMs > 0) return t('time_in', diffH, diffM);
+    if (diffMs > -60000) return t('time_now');
+    return t('time_ago', diffH, diffM);
+  }
 
-    const formData = new FormData();
-    formData.append("image", selectedFile);
-    formData.append("pages", pages);
-    formData.append("output_name", outputName.value.trim());
+  function isStale(cachedAt, hours = 12) {
+    if (!cachedAt) return false;
+    return (Date.now() - new Date(cachedAt)) > hours * 3600000;
+  }
 
-    try {
-      const response = await fetch("/generate", { method: "POST", body: formData });
+  function destName(r) {
+    return _lang === 'zh' ? (DEST_ZH[r.iata] || r.destination) : r.destination;
+  }
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Unknown server error.");
+  function regionLabel(r) {
+    return _lang === 'zh' ? (REGION_ZH[r.region] || r.region) : r.region;
+  }
+
+  // ── Card rendering ─────────────────────────────────────────────────────
+
+  function buildCard(r) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.iata = r.iata;
+    card.dataset.region = r.region || '';
+    card.dataset.status = r.status || 'pending';
+    card.innerHTML = cardInner(r);
+    return card;
+  }
+
+  function cardInner(r) {
+    const status = r.status || 'pending';
+    let priceHtml = '', actionHtml = '';
+
+    if (status === 'ok' && r.price) {
+      const staleHtml = isStale(r.cached_at)
+        ? `<div class="price-stale">⚠ ${t('stale')}</div>` : '';
+      priceHtml = `
+        <div class="card-price-area">
+          <div>${fmtPrice(r.price, r.currency)}</div>
+          <div class="price-date">${t('best_date')} ${fmtDate(r.best_date)}</div>
+          ${staleHtml}
+        </div>`;
+      const zhUrl = r.booking_url + '&locale=zh_TW';
+      actionHtml = `<a class="book-btn" href="${zhUrl}" target="_blank" rel="noopener">${t('book_now')}</a>
+        <div class="book-ps">p.s 如果價格變高，代表已經搶購一空，請見諒</div>`;
+
+    } else if (status === 'pending') {
+      priceHtml = `
+        <div class="card-price-area">
+          <div class="skeleton skeleton-price"></div>
+          <div class="skeleton skeleton-date"></div>
+        </div>`;
+      actionHtml = `<div class="meta-label" style="text-align:center;padding:8px 0">${t('scanning_card')}</div>`;
+
+    } else {
+      let stalePriceHtml = '';
+      if (r.price) {
+        stalePriceHtml = `
+          <div style="margin-top:4px">
+            <div>${fmtPrice(r.price, r.currency)}</div>
+            <div class="price-date">${t('last_seen')} ${fmtDate(r.best_date)}</div>
+            <div class="price-stale">${t('stale')}</div>
+          </div>`;
       }
-
-      // Trigger download
-      const blob = await response.blob();
-      const disposition = response.headers.get("Content-Disposition") || "";
-      const nameMatch = disposition.match(/filename="?([^"]+)"?/);
-      const filename = nameMatch ? nameMatch[1] : "book.pdf";
-
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(a.href);
-
-      finishProgress();
-      showToast(`✓ "${filename}" downloaded successfully!`, "success");
-    } catch (err) {
-      finishProgress(true);
-      showToast(err.message, "error");
-    } finally {
-      generateBtn.disabled = false;
-      btnLabel.textContent = "Generate PDF";
+      const badgeClass = status === 'blocked' ? 'badge-blocked' : 'badge-error';
+      const badgeText  = status === 'blocked' ? t('rate_limited') :
+                         status === 'no_data' ? t('no_data') : t('err');
+      priceHtml  = `<div class="card-price-area"><span class="status-badge ${badgeClass}">${badgeText}</span>${stalePriceHtml}</div>`;
+      actionHtml = `<button class="retry-btn" onclick="retryDest('${r.iata}')">${t('retry')}</button>`;
     }
-  });
 
-  // Progress animation (fake progress while server works)
-  let progressTimer = null;
-
-  function animateProgress() {
-    let pct = 0;
-    progressBar.style.width = "0%";
-    progressLabel.textContent = "Uploading and generating…";
-    progressTimer = setInterval(() => {
-      pct = Math.min(pct + Math.random() * 6, 85);
-      progressBar.style.width = pct + "%";
-    }, 300);
+    return `
+      <div class="card-header">
+        <div class="card-flag">${r.flag || '✈'}</div>
+        <div class="card-region">${regionLabel(r)}</div>
+      </div>
+      <div>
+        <div class="card-name">${destName(r)}</div>
+        <div class="card-name-sub">${_lang === 'zh' ? r.destination + '　' : ''}TPE → ${r.iata}</div>
+      </div>
+      ${priceHtml}
+      ${actionHtml}`;
   }
 
-  function finishProgress(error = false) {
-    clearInterval(progressTimer);
-    progressBar.style.width = error ? "0%" : "100%";
-    progressLabel.textContent = error ? "" : "Done!";
-    setTimeout(() => { progressWrap.style.display = "none"; }, 1200);
+  function updateCard(iata, data) {
+    const card = document.querySelector(`.card[data-iata="${iata}"]`);
+    if (!card) return;
+    const existing = _allResults.find(r => r.iata === iata) || {};
+    const merged = { ...existing, ...data };
+    const idx = _allResults.findIndex(r => r.iata === iata);
+    if (idx >= 0) _allResults[idx] = merged;
+    card.dataset.status = merged.status || 'pending';
+    card.innerHTML = cardInner(merged);
+    sortCards();
   }
 
-  function showToast(msg, type) {
-    toast.textContent = msg;
-    toast.className = type;
-    toast.style.display = "block";
+  function sortCards() {
+    const grid = document.getElementById('card-grid');
+    const cards = Array.from(grid.querySelectorAll('.card'));
+    cards.sort((a, b) => {
+      const aP = (_allResults.find(r => r.iata === a.dataset.iata)?.price) ?? Infinity;
+      const bP = (_allResults.find(r => r.iata === b.dataset.iata)?.price) ?? Infinity;
+      return aP - bP;
+    });
+    cards.forEach(c => grid.appendChild(c));
   }
 
-  function hideToast() {
-    toast.style.display = "none";
+  // ── Render grid ────────────────────────────────────────────────────────
+
+  function renderGrid(results) {
+    _allResults = results;
+    const grid = document.getElementById('card-grid');
+    grid.innerHTML = '';
+    const globalMsg = document.getElementById('global-msg');
+
+    const filtered = _currentFilter === 'all'
+      ? results : results.filter(r => r.region === _currentFilter);
+
+    if (filtered.length === 0) {
+      globalMsg.textContent = t('no_match');
+      globalMsg.classList.remove('hidden');
+      return;
+    }
+    globalMsg.classList.add('hidden');
+    [...filtered].sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity))
+                 .forEach(r => grid.appendChild(buildCard(r)));
   }
 
-  function formatBytes(bytes) {
-    if (bytes < 1024) return bytes + " B";
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  function setFilter(key, btn) {
+    _currentFilter = key;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderGrid(_allResults);
   }
+
+  // ── Data fetching ──────────────────────────────────────────────────────
+
+  async function loadFlights() {
+    const res = await fetch('/api/flights');
+    const data = await res.json();
+    updateMetaBar(data.last_updated, data.next_refresh);
+    renderGrid(data.results || []);
+    const hasStale = (data.results || []).some(r => r.status === 'ok' && isStale(r.cached_at, 12));
+    document.getElementById('stale-warning').classList.toggle('visible', hasStale);
+    if (data.scanning) startSSE();
+  }
+
+  function updateMetaBar(lastUpdated, nextRefresh) {
+    const lu = document.getElementById('last-updated');
+    const nr = document.getElementById('next-refresh');
+    if (lastUpdated) {
+      const d = new Date(lastUpdated);
+      const locale = _lang === 'zh' ? 'zh-TW' : 'en-US';
+      lu.textContent = d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+    } else {
+      lu.textContent = '—';
+    }
+    nr.textContent = nextRefresh ? fmtRelativeTime(nextRefresh) : '—';
+  }
+
+  async function triggerRefresh() {
+    const btn = document.getElementById('refresh-btn');
+    btn.disabled = true;
+    try {
+      await fetch('/api/refresh', { method: 'POST' });
+      startSSE();
+    } finally {
+      setTimeout(() => { btn.disabled = false; }, 3000);
+    }
+  }
+
+  async function retryDest(iata) {
+    await fetch(`/api/refresh?iata=${iata}`, { method: 'POST' });
+    const card = document.querySelector(`.card[data-iata="${iata}"]`);
+    if (card) {
+      const r = _allResults.find(r => r.iata === iata) || {};
+      r.status = 'pending';
+      card.dataset.status = 'pending';
+      card.innerHTML = cardInner(r);
+    }
+    startSSE();
+  }
+
+  // ── SSE ────────────────────────────────────────────────────────────────
+
+  function startSSE() {
+    if (_sse) { _sse.close(); _sse = null; }
+    setScanBanner(true, t('scanning'), 0, 15);
+    _sse = new EventSource('/api/status/stream');
+    _sse.onmessage = ev => {
+      const data = JSON.parse(ev.data);
+      if (data.type === 'heartbeat') return;
+      if (data.type === 'scan_start') setScanBanner(true, t('scanning'), 0, data.total || 15);
+      if (data.type === 'destination_done') {
+        const r = _allResults.find(r => r.iata === data.iata);
+        const name = _lang === 'zh' ? (DEST_ZH[data.iata] || r?.destination || data.iata)
+                                    : (r?.destination || data.iata);
+        setScanBanner(true, t('scanned', name), data.index, data.total);
+        updateCard(data.iata, data);
+      }
+      if (data.type === 'scan_done') {
+        setScanBanner(false);
+        loadStatus();
+        _sse.close(); _sse = null;
+      }
+    };
+    _sse.onerror = () => { setScanBanner(false); if (_sse) { _sse.close(); _sse = null; } };
+  }
+
+  function setScanBanner(visible, label, done, total) {
+    document.getElementById('scan-banner').classList.toggle('visible', visible);
+    if (visible) {
+      document.getElementById('scan-label').textContent  = label || t('scanning');
+      document.getElementById('scan-count').textContent  = total ? `${done}/${total}` : '';
+      document.getElementById('progress-fill').style.width = (total ? Math.round(done/total*100) : 0) + '%';
+      document.getElementById('refresh-icon').textContent = '⟳';
+    } else {
+      document.getElementById('refresh-icon').textContent = '↻';
+    }
+  }
+
+  async function loadStatus() {
+    const res = await fetch('/api/status');
+    const data = await res.json();
+    updateMetaBar(data.last_updated, data.next_refresh);
+  }
+
+  async function pollStatus() {
+    const res = await fetch('/api/status');
+    const data = await res.json();
+    document.getElementById('next-refresh').textContent =
+      data.next_refresh ? fmtRelativeTime(data.next_refresh) : '—';
+    if (data.scanning && !_sse) startSSE();
+  }
+
+  // ── Init ───────────────────────────────────────────────────────────────
+
+  applyLang();
+  loadFlights();
+  _statusInterval = setInterval(pollStatus, 30000);
 </script>
 </body>
 </html>

@@ -1,244 +1,114 @@
-# 📖 Low-Content Book Generator
+# CheapTicket
 
-A simple web app that takes a **single page image (JPG or PNG)** and duplicates it N times to generate a ready-to-publish **PDF file** — perfect for KDP low-content books like journals, notebooks, planners, and log books.
+Scrapes trip.com daily to find the cheapest one-way flights from Taipei (TPE) to 23 popular destinations. Built with Flask + Playwright — no paid APIs.
 
----
-
-## ✨ Features
-
-- Upload any JPG or PNG page template
-- Set the number of pages (1–1000, default: 100)
-- Custom output filename support
-- Drag-and-drop file upload
-- One-click PDF download
-- Clean, modern web UI
+**Live:** https://flights.srv1213330.hstgr.cloud
 
 ---
 
-## 🗂 Project Structure
+## Features
 
-```
-low-content-book-generator/
-├── app.py                    # Flask web server (Web UI backend)
-├── low_content_generator.py  # Standalone CLI version
-├── templates/
-│   └── index.html            # Web UI frontend
-├── requirements.txt          # Python dependencies
-└── README.md
-```
+- 23 destinations: Japan, Korea, HK, Macau, Thailand, Vietnam, SE Asia, Europe, Americas, Pacific
+- Prices in TWD with trip.com affiliate booking links
+- Daily auto-scan via Playwright headless Chromium
+- Traditional Chinese / English UI toggle
+- REST API for programmatic price queries
 
 ---
 
-## 🖥 Local Development
-
-### 1. Clone the repo
-
-```bash
-git clone https://github.com/n1227snowpro/low-content-book-generator.git
-cd low-content-book-generator
-```
-
-### 2. Create a virtual environment
-
-```bash
-python3 -m venv venv
-source venv/bin/activate        # macOS / Linux
-# venv\Scripts\activate         # Windows
-```
-
-### 3. Install dependencies
+## Run locally
 
 ```bash
 pip install -r requirements.txt
-```
-
-### 4. Run the app
-
-```bash
+playwright install chromium
 python3 app.py
-```
-
-Open your browser at **http://localhost:9000**
-
----
-
-## 🖱 CLI Usage (without the web UI)
-
-```bash
-# Default 100 pages
-python3 low_content_generator.py page.jpg
-
-# Custom page count
-python3 low_content_generator.py page.png --pages 50
-
-# Custom output filename
-python3 low_content_generator.py page.jpg --pages 120 --output my_journal.pdf
+# → http://localhost:9002
 ```
 
 ---
 
-## 🚀 Server Deployment Guide
+## Run with Docker
 
-### Requirements
+```bash
+docker-compose up -d --build
+# → http://localhost:9002
+```
 
-- Ubuntu 20.04+ / Debian / CentOS (or any Linux VPS)
-- Python 3.9+
-- Nginx (recommended as reverse proxy)
-- `gunicorn` (production WSGI server)
+Data persists in a Docker volume (`cheapticket_data`).
 
 ---
 
-### Step 1 — SSH into your server
+## API
 
-```bash
-ssh user@your-server-ip
+### `GET /api/flights`
+Returns all cached flight prices as JSON.
+
+### `POST /api/query`
+Query the price for a single destination.
+
+**Request:**
+```json
+{"destination": "Cebu"}
 ```
+Accepts destination name (partial match OK) or IATA code (e.g. `"CEB"`).
 
----
-
-### Step 2 — Install system dependencies
-
-```bash
-sudo apt update && sudo apt upgrade -y
-sudo apt install python3 python3-pip python3-venv nginx -y
-```
-
----
-
-### Step 3 — Clone the project
-
-```bash
-cd /var/www
-sudo git clone https://github.com/n1227snowpro/low-content-book-generator.git
-sudo chown -R $USER:$USER /var/www/low-content-book-generator
-cd /var/www/low-content-book-generator
-```
-
----
-
-### Step 4 — Set up Python environment
-
-```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-pip install gunicorn
-```
-
----
-
-### Step 5 — Test with Gunicorn
-
-```bash
-gunicorn --bind 0.0.0.0:9000 app:app
-```
-
-Visit `http://your-server-ip:9000` to confirm it works, then press `Ctrl+C`.
-
----
-
-### Step 6 — Create a systemd service
-
-```bash
-sudo nano /etc/systemd/system/lowcontent.service
-```
-
-Paste the following (replace `your_username` with your actual Linux user):
-
-```ini
-[Unit]
-Description=Low-Content Book Generator
-After=network.target
-
-[Service]
-User=your_username
-WorkingDirectory=/var/www/low-content-book-generator
-ExecStart=/var/www/low-content-book-generator/venv/bin/gunicorn --workers 2 --bind 127.0.0.1:9000 app:app
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Enable and start the service:
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable lowcontent
-sudo systemctl start lowcontent
-sudo systemctl status lowcontent
-```
-
----
-
-### Step 7 — Configure Nginx reverse proxy
-
-```bash
-sudo nano /etc/nginx/sites-available/lowcontent
-```
-
-Paste:
-
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;   # or your server IP
-
-    client_max_body_size 50M;      # allow large image uploads
-
-    location / {
-        proxy_pass         http://127.0.0.1:9000;
-        proxy_set_header   Host $host;
-        proxy_set_header   X-Real-IP $remote_addr;
-        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_read_timeout 120s;
-    }
+**Success (HTTP 200):**
+```json
+{
+  "destination": "Cebu",
+  "iata": "CEB",
+  "flag": "🇵🇭",
+  "region": "SE Asia",
+  "price": 5800,
+  "currency": "TWD",
+  "best_date": "2026-05-10",
+  "booking_url": "https://www.trip.com/flights/taipei-to-cebu/...",
+  "status": "ok",
+  "cached_at": "2026-04-19T10:00:00+00:00",
+  "fresh": true
 }
 ```
 
-Enable the site and restart Nginx:
+If the cache is stale the endpoint scrapes live (~30s). If the destination is not found, returns HTTP 404 with an `available` list.
+
+### `POST /api/refresh`
+Trigger a full rescan. Optional `?iata=NRT` for a single destination.
+
+---
+
+## Server setup (one-time)
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/lowcontent /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl restart nginx
+git clone https://github.com/n1227snowpro/cheap-ticket /opt/cheap-ticket
+cd /opt/cheap-ticket
+docker-compose up -d --build
+
+# Nginx reverse proxy
+cat > /etc/nginx/sites-available/cheapticket << 'EOF'
+server {
+    listen 80;
+    server_name flights.srv1213330.hstgr.cloud;
+    location / {
+        proxy_pass http://localhost:9002;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_buffering off;
+    }
+}
+EOF
+ln -s /etc/nginx/sites-available/cheapticket /etc/nginx/sites-enabled/
+nginx -t && systemctl reload nginx
+certbot --nginx -d flights.srv1213330.hstgr.cloud
 ```
 
----
+## GitHub Actions auto-deploy
 
-### Step 8 — (Optional) Enable HTTPS with Let's Encrypt
+Add these secrets in the repo (Settings → Secrets → Actions):
 
-```bash
-sudo apt install certbot python3-certbot-nginx -y
-sudo certbot --nginx -d your-domain.com
-```
+| Secret | Value |
+|---|---|
+| `SERVER_HOST` | `srv1213330.hstgr.cloud` |
+| `SERVER_USER` | `root` |
+| `SSH_PRIVATE_KEY` | Your SSH private key |
 
-Certbot will automatically update your Nginx config and renew certs.
-
----
-
-### 🔄 Updating the app on the server
-
-```bash
-cd /var/www/low-content-book-generator
-git pull
-source venv/bin/activate
-pip install -r requirements.txt
-sudo systemctl restart lowcontent
-```
-
----
-
-## 📦 Requirements
-
-| Package | Purpose |
-|---------|---------|
-| Flask   | Web framework |
-| Pillow  | Image processing & PDF generation |
-
----
-
-## 📄 License
-
-MIT — free to use and modify.
+Every push to `main` auto-deploys to the server via SSH.

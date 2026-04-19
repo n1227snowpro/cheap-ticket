@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  cheapticket:
+    build: .
+    ports:
+      - "9002:9002"
+    volumes:
+      - cheapticket_data:/app/data
+    environment:
+      - CHEAPTICKET_DATA=/app/data
+    restart: unless-stopped
+
+volumes:
+  cheapticket_data:

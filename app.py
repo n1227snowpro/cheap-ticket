@@ -1,74 +1,198 @@
-#!/usr/bin/env python3
-"""
-Low-Content Book Generator — Web UI backend
-Run: python3 app.py
-Then open: http://localhost:5000
-"""
+import json
+import logging
+from pathlib import Path
 
-import io
-import os
-from flask import Flask, render_template, request, send_file, jsonify
-from PIL import Image
+from flask import Flask, Response, jsonify, render_template, request, stream_with_context
+
+import config
+import db
+import scheduler
+import scraper
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
+
+DATA_DIR = Path.home() / "Library" / "Application Support" / "CheapTicket"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024  # 50 MB upload limit
 
+
+# ── Routes ──────────────────────────────────────────────────────────────────
 
 @app.route("/")
 def index():
     return render_template("index.html")
 
 
-@app.route("/generate", methods=["POST"])
-def generate():
-    if "image" not in request.files:
-        return jsonify({"error": "No image file uploaded."}), 400
+@app.route("/api/flights")
+def api_flights():
+    rows = db.get_all_cached()
+    status = scheduler.get_status()
+    return jsonify({
+        "scanning": status["scanning"],
+        "last_updated": status["last_updated"],
+        "next_refresh": status["next_refresh"],
+        "results": rows,
+    })
 
-    file = request.files["image"]
-    if file.filename == "":
-        return jsonify({"error": "No file selected."}), 400
 
-    ext = os.path.splitext(file.filename)[1].lower()
-    if ext not in (".jpg", ".jpeg", ".png"):
-        return jsonify({"error": "Only JPG and PNG files are supported."}), 400
+@app.route("/api/status")
+def api_status():
+    return jsonify(scheduler.get_status())
 
-    try:
-        num_pages = int(request.form.get("pages", 100))
-        if num_pages < 1 or num_pages > 1000:
-            return jsonify({"error": "Pages must be between 1 and 1000."}), 400
-    except ValueError:
-        return jsonify({"error": "Invalid page count."}), 400
 
-    output_name = request.form.get("output_name", "").strip()
-    if not output_name:
-        base = os.path.splitext(file.filename)[0]
-        output_name = f"{base}_{num_pages}pages"
-    if not output_name.endswith(".pdf"):
-        output_name += ".pdf"
+@app.route("/api/refresh", methods=["POST"])
+def api_refresh():
+    iata = request.args.get("iata", "").upper() or None
 
-    try:
-        img = Image.open(file.stream).convert("RGB")
-        pages = [img.copy() for _ in range(num_pages - 1)]
+    if iata:
+        ok = scheduler.run_scan_dest(iata)
+        if not ok:
+            return jsonify({"error": f"Unknown destination: {iata}"}), 400
+        return jsonify({"message": f"Refresh triggered for {iata}"})
+    else:
+        if scheduler.get_status()["scanning"]:
+            return jsonify({"message": "Scan already in progress"}), 200
+        scheduler.run_scan("manual")
+        return jsonify({"message": "Full refresh triggered"})
 
-        pdf_buffer = io.BytesIO()
-        img.save(
-            pdf_buffer,
-            format="PDF",
-            save_all=True,
-            append_images=pages,
-            resolution=150,
-        )
-        pdf_buffer.seek(0)
 
-        return send_file(
-            pdf_buffer,
-            mimetype="application/pdf",
-            as_attachment=True,
-            download_name=output_name,
-        )
-    except Exception as e:
-        return jsonify({"error": f"Failed to generate PDF: {str(e)}"}), 500
+@app.route("/api/status/stream")
+def api_status_stream():
+    """Server-Sent Events endpoint for real-time scan progress."""
+    q = scheduler.get_event_queue()
 
+    def generate():
+        # Send current status immediately
+        status = scheduler.get_status()
+        yield f"data: {json.dumps({'type': 'status', **status})}\n\n"
+
+        # Stream events from the queue
+        while True:
+            try:
+                event = q.get(timeout=20)
+                yield f"data: {json.dumps(event)}\n\n"
+                # Stop streaming once scan finishes
+                if event.get("type") == "scan_done":
+                    break
+            except Exception:
+                # Heartbeat to keep connection alive
+                yield f"data: {json.dumps({'type': 'heartbeat'})}\n\n"
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+# ── Query API ────────────────────────────────────────────────────────────────
+
+def _lookup_destination(query: str):
+    """Find a destination by IATA code or name (case-insensitive, partial match)."""
+    q_upper = query.upper()
+    q_lower = query.lower()
+    # Exact IATA match
+    for d in db.DESTINATIONS:
+        if d["iata"] == q_upper:
+            return d
+    # Exact name match
+    for d in db.DESTINATIONS:
+        if d["destination"].lower() == q_lower:
+            return d
+    # Partial name match
+    for d in db.DESTINATIONS:
+        if q_lower in d["destination"].lower():
+            return d
+    return None
+
+
+@app.route("/api/query", methods=["POST"])
+def api_query():
+    """
+    Query flight price for a single destination.
+    Request body: {"destination": "Cebu"}  or  {"destination": "CEB"}
+    Returns cached data (refreshes live if stale).
+    """
+    body = request.get_json(force=True, silent=True) or {}
+    raw = (body.get("destination") or body.get("iata") or "").strip()
+    if not raw:
+        return jsonify({"error": "destination is required"}), 400
+
+    dest = _lookup_destination(raw)
+    if not dest:
+        return jsonify({
+            "error": "Destination not found",
+            "query": raw,
+            "available": [
+                {"iata": d["iata"], "destination": d["destination"], "flag": d["flag"]}
+                for d in db.DESTINATIONS
+            ],
+        }), 404
+
+    iata = dest["iata"]
+
+    # If stale or never scanned, scrape now (synchronous, ~30s)
+    if not db.is_cache_fresh(iata, max_age_hours=12):
+        result = scraper.scrape_destination(dest)
+        db.upsert_result(iata, result)
+
+    row = db.get_one_cached(iata)
+    if not row:
+        return jsonify({"error": "Failed to fetch data", "iata": iata}), 500
+
+    return jsonify({
+        "destination": row["destination"],
+        "iata": row["iata"],
+        "flag": row["flag"],
+        "region": row["region"],
+        "price": row["price"],
+        "currency": row["currency"],
+        "best_date": row["best_date"],
+        "booking_url": row["booking_url"],
+        "status": row["status"],
+        "cached_at": row["cached_at"],
+        "fresh": db.is_cache_fresh(iata, max_age_hours=12),
+    })
+
+
+# ── Settings ─────────────────────────────────────────────────────────────────
+
+@app.route("/api/settings", methods=["GET"])
+def api_settings_get():
+    cfg = config.load()
+    keys = config.get_api_keys()
+    return jsonify({
+        "api_keys_count": len(keys),
+        "api_keys_masked": [f"...{k[-6:]}" for k in keys],
+        "refresh_interval_hours": cfg.get("refresh_interval_hours", 24),
+        "search_days_ahead": cfg.get("search_days_ahead", 28),
+        "monthly_calls_estimate": 15 * 30,
+        "monthly_free_limit": len(keys) * 250,
+    })
+
+
+@app.route("/api/settings/add-key", methods=["POST"])
+def api_add_key():
+    body = request.get_json(silent=True) or {}
+    key = (body.get("key") or "").strip()
+    if not key:
+        return jsonify({"error": "key is required"}), 400
+    config.add_api_key(key)
+    return jsonify({"message": f"Key …{key[-6:]} added", "total_keys": len(config.get_api_keys())})
+
+
+# ── Startup ──────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    app.run(debug=True, port=9000)
+    db.init_db()
+    scheduler.start(app)
+    logger.info("CheapTicket starting on http://localhost:9002")
+    app.run(debug=False, port=9002, threaded=True)

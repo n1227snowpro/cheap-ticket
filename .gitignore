@@ -14,3 +14,10 @@ venv/
 
 # Flask
 instance/
+
+# App data (stored in ~/Library/Application Support/CheapTicket/ or Docker volume)
+*.db
+config.json
+
+# Playwright browser cache
+ms-playwright/
