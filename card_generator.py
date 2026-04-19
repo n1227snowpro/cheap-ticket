@@ -91,6 +91,12 @@ def _card_html(row: dict) -> str:
     date_zh = _fmt_date_zh(row.get("best_date", ""))
     airline_name = row.get("airline_name", "") or ""
     airline_logo = _airline_logo_url(airline_name)
+    if airline_name:
+        hide = "this.style.display='none'"
+        logo_tag = f'<img class="airline-logo" src="{airline_logo}" onerror="{hide}" alt="">' if airline_logo else ""
+        airline_html = f'<div class="airline-row">{logo_tag}<span class="airline-name">{airline_name}</span></div>'
+    else:
+        airline_html = ""
 
     return f"""<!DOCTYPE html>
 <html>
@@ -207,7 +213,7 @@ def _card_html(row: dict) -> str:
       <div class="currency">{currency}</div>
     </div>
     <div class="date">最佳日期：{date_zh}</div>
-    {f'<div class="airline-row"><img class="airline-logo" src="{airline_logo}" onerror="this.style.display=\'none\'"/><span class="airline-name">{airline_name}</span></div>' if airline_name else ''}
+    {airline_html}
   </div>
   <div class="watermark">flights.srv1213330.hstgr.cloud</div>
 </div>
