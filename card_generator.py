@@ -107,16 +107,17 @@ def _card_html(row: dict) -> str:
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
   body {{
     width: 600px; height: 340px;
-    background: #0d1117;
+    background: #f0f2f5;
     font-family: "Noto Sans CJK TC", "Noto Sans TC", "PingFang TC",
                  "Microsoft JhengHei", -apple-system, BlinkMacSystemFont, sans-serif;
     display: flex; align-items: center; justify-content: center;
   }}
   .card {{
     width: 560px; height: 300px;
-    background: #161b22;
+    background: #ffffff;
     border-radius: 18px;
-    border: 1px solid #30363d;
+    border: 1px solid #e0e4ea;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
     padding: 26px 28px 22px;
     position: relative;
     display: flex;
@@ -124,7 +125,7 @@ def _card_html(row: dict) -> str:
     justify-content: space-between;
   }}
 
-  /* ── Row 1: airline name + flag ── */
+  /* ── Row 1: airline name + flag badge ── */
   .row-top {{
     display: flex;
     align-items: center;
@@ -133,26 +134,26 @@ def _card_html(row: dict) -> str:
   .airline-name {{
     font-size: 18px;
     font-weight: 700;
-    color: #e6edf3;
+    color: #111827;
     letter-spacing: 0.2px;
   }}
   .flag-badge {{
     display: flex;
     align-items: center;
     gap: 6px;
-    background: #21262d;
-    border: 1px solid #30363d;
+    background: #f3f4f6;
+    border: 1px solid #e0e4ea;
     border-radius: 20px;
-    padding: 5px 12px 5px 8px;
+    padding: 5px 14px 5px 8px;
   }}
   .flag {{ font-size: 22px; line-height: 1; }}
   .flag-label {{
     font-size: 14px;
-    color: #8b949e;
-    font-weight: 500;
+    color: #374151;
+    font-weight: 600;
   }}
 
-  /* ── Row 2: logo + route ── */
+  /* ── Row 2: logo + route + dest ── */
   .row-mid {{
     display: flex;
     align-items: center;
@@ -161,43 +162,42 @@ def _card_html(row: dict) -> str:
     padding: 14px 0 8px;
   }}
   .airline-logo {{
-    width: 56px;
-    height: 56px;
+    width: 60px;
+    height: 60px;
     border-radius: 50%;
     object-fit: contain;
-    background: #21262d;
-    border: 1px solid #30363d;
+    background: #f9fafb;
+    border: 1px solid #e0e4ea;
     flex-shrink: 0;
+    padding: 4px;
   }}
   .airline-logo-placeholder {{
-    width: 56px;
-    height: 56px;
+    width: 60px;
+    height: 60px;
     border-radius: 50%;
-    background: #21262d;
-    border: 1px solid #30363d;
+    background: #f3f4f6;
+    border: 1px solid #e0e4ea;
     display: flex; align-items: center; justify-content: center;
-    font-size: 24px;
+    font-size: 26px;
     flex-shrink: 0;
   }}
   .route-block {{
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 5px;
   }}
   .route {{
-    font-size: 32px;
+    font-size: 30px;
     font-weight: 800;
-    color: #e6edf3;
+    color: #111827;
     letter-spacing: 0.5px;
     line-height: 1;
   }}
   .route-sub {{
-    font-size: 14px;
-    color: #8b949e;
+    font-size: 13px;
+    color: #6b7280;
     letter-spacing: 0.3px;
   }}
-
-  /* dest block on right side */
   .dest-block {{
     margin-left: auto;
     text-align: right;
@@ -205,12 +205,12 @@ def _card_html(row: dict) -> str:
   .dest-zh {{
     font-size: 36px;
     font-weight: 800;
-    color: #e6edf3;
+    color: #111827;
     line-height: 1;
   }}
   .dest-tag {{
-    font-size: 13px;
-    color: #8b949e;
+    font-size: 12px;
+    color: #9ca3af;
     margin-top: 4px;
   }}
 
@@ -219,7 +219,7 @@ def _card_html(row: dict) -> str:
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
-    border-top: 1px solid #21262d;
+    border-top: 1px solid #f0f2f5;
     padding-top: 14px;
   }}
   .date-block {{
@@ -229,27 +229,28 @@ def _card_html(row: dict) -> str:
   }}
   .date-label {{
     font-size: 11px;
-    color: #6e7681;
-    letter-spacing: 0.4px;
+    color: #9ca3af;
+    letter-spacing: 0.5px;
     text-transform: uppercase;
   }}
   .date-val {{
-    font-size: 14px;
-    color: #8b949e;
+    font-size: 15px;
+    color: #374151;
+    font-weight: 500;
   }}
   .price-block {{
     text-align: right;
   }}
   .price-prefix {{
-    font-size: 15px;
-    color: #8b949e;
-    font-weight: 400;
+    font-size: 16px;
+    color: #374151;
+    font-weight: 500;
   }}
   .price {{
-    font-size: 38px;
+    font-size: 40px;
     font-weight: 800;
-    color: #e6edf3;
-    letter-spacing: -0.5px;
+    color: #111827;
+    letter-spacing: -1px;
     line-height: 1;
   }}
   .watermark {{
@@ -257,7 +258,7 @@ def _card_html(row: dict) -> str:
     bottom: 10px;
     right: 16px;
     font-size: 10px;
-    color: #21262d;
+    color: #d1d5db;
     letter-spacing: 0.3px;
   }}
 </style>
