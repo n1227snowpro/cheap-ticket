@@ -137,15 +137,15 @@ def _card_html(row: dict) -> str:
 <style>
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
   body {{
-    width: 600px; height: 300px;
+    width: 800px; height: 340px;
     background: #ffffff;
     font-family: "Noto Sans CJK TC", "Noto Sans TC", "PingFang TC",
                  "Microsoft JhengHei", -apple-system, BlinkMacSystemFont, sans-serif;
   }}
   .card {{
-    width: 600px; height: 300px;
+    width: 800px; height: 340px;
     background: #ffffff;
-    padding: 26px 30px 24px;
+    padding: 28px 34px 26px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -158,84 +158,86 @@ def _card_html(row: dict) -> str:
     justify-content: space-between;
   }}
   .airline-name {{
-    font-size: 28px;
+    font-size: 40px;
     font-weight: 800;
     color: #111827;
-    letter-spacing: -0.3px;
+    letter-spacing: -0.5px;
   }}
   .icons {{
     display: flex;
-    gap: 22px;
+    gap: 28px;
     align-items: center;
   }}
   .icon {{
-    width: 34px; height: 34px;
+    width: 42px; height: 42px;
     color: #111827;
     flex-shrink: 0;
-    stroke-width: 1.8;
+    stroke-width: 2;
   }}
 
   /* ── Row 2: logo + time/route + right ── */
   .row-mid {{
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 20px;
     flex: 1;
-    padding: 16px 0 10px;
+    padding: 18px 0 12px;
   }}
   .airline-logo {{
-    width: 52px;
-    height: 52px;
-    border-radius: 10px;
+    width: 72px;
+    height: 72px;
+    border-radius: 14px;
     object-fit: contain;
     background: #f3f4f6;
     flex-shrink: 0;
-    padding: 3px;
+    padding: 4px;
     border: 1px solid #e5e7eb;
   }}
   .airline-logo-placeholder {{
-    width: 52px;
-    height: 52px;
-    border-radius: 10px;
+    width: 72px;
+    height: 72px;
+    border-radius: 14px;
     background: #f3f4f6;
     border: 1px solid #e5e7eb;
     display: flex; align-items: center; justify-content: center;
-    font-size: 24px;
+    font-size: 32px;
     flex-shrink: 0;
   }}
   .route-block {{
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 8px;
   }}
   .route {{
-    font-size: 30px;
+    font-size: 40px;
     font-weight: 800;
     color: #111827;
     letter-spacing: 0.3px;
     line-height: 1;
   }}
   .route-sub {{
-    font-size: 13px;
+    font-size: 20px;
     color: #6b7280;
+    font-weight: 500;
   }}
   .right-block {{
     margin-left: auto;
     text-align: right;
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 8px;
   }}
   .direct {{
-    font-size: 28px;
+    font-size: 36px;
     font-weight: 800;
     color: #111827;
     letter-spacing: -0.3px;
+    line-height: 1;
   }}
   .dest-date {{
-    font-size: 20px;
-    font-weight: 600;
-    color: #374151;
+    font-size: 22px;
+    font-weight: 500;
+    color: #6b7280;
   }}
 
   /* ── Row 3: price ── */
@@ -245,10 +247,10 @@ def _card_html(row: dict) -> str:
     justify-content: flex-end;
   }}
   .price {{
-    font-size: 40px;
+    font-size: 56px;
     font-weight: 800;
     color: #111827;
-    letter-spacing: -1px;
+    letter-spacing: -1.5px;
     line-height: 1;
   }}
 </style>
@@ -305,11 +307,11 @@ def generate_card(row: dict) -> Path:
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        page = browser.new_page(viewport={"width": 600, "height": 300})
+        page = browser.new_page(viewport={"width": 800, "height": 340})
         page.set_content(html, wait_until="networkidle")
         page.screenshot(
             path=str(out_path),
-            clip={"x": 0, "y": 0, "width": 600, "height": 300},
+            clip={"x": 0, "y": 0, "width": 800, "height": 340},
         )
         browser.close()
 
