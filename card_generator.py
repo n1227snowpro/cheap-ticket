@@ -276,7 +276,6 @@ def _card_html(row: dict) -> str:
     </div>
     <div class="right-block">
       <div class="direct">直飛</div>
-      <div class="dest-date">最佳日期：{date_zh}</div>
     </div>
   </div>
 
