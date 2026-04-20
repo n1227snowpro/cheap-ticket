@@ -58,6 +58,7 @@ def init_db():
                 best_date    TEXT,
                 booking_url  TEXT,
                 airline_name TEXT,
+                duration     TEXT,
                 status       TEXT DEFAULT 'pending',
                 error_msg    TEXT,
                 cached_at    TEXT,
@@ -73,11 +74,13 @@ def init_db():
                 trigger          TEXT DEFAULT 'auto'
             );
         """)
-        # Migrate: add airline_name column if it doesn't exist yet
-        try:
-            c.execute("ALTER TABLE flight_cache ADD COLUMN airline_name TEXT")
-        except Exception:
-            pass  # column already exists
+        # Migrate: add columns if they don't exist yet
+        for col in ["ALTER TABLE flight_cache ADD COLUMN airline_name TEXT",
+                    "ALTER TABLE flight_cache ADD COLUMN duration TEXT"]:
+            try:
+                c.execute(col)
+            except Exception:
+                pass  # column already exists
 
         # Seed rows for all destinations (INSERT OR IGNORE)
         now = datetime.now(timezone.utc).isoformat()
@@ -111,6 +114,7 @@ def upsert_result(iata: str, data: dict):
                 best_date    = ?,
                 booking_url  = ?,
                 airline_name = ?,
+                duration     = ?,
                 status       = ?,
                 error_msg    = ?,
                 cached_at    = CASE WHEN ? = 'ok' THEN ? ELSE cached_at END,
@@ -122,6 +126,7 @@ def upsert_result(iata: str, data: dict):
             data.get("best_date"),
             data.get("booking_url"),
             data.get("airline_name", ""),
+            data.get("duration", ""),
             data.get("status", "error"),
             data.get("error_msg"),
             data.get("status", "error"), now,

@@ -98,6 +98,7 @@ def scrape_destination(dest: dict) -> dict:
     best_price_twd = None
     best_date_str = None
     best_airline = None
+    best_duration = None
 
     try:
         with sync_playwright() as pw:
@@ -204,7 +205,22 @@ def scrape_destination(dest: dict) -> dict:
                                     }
                                 }
 
-                                out.push({val, curr, airline});
+                                // Duration: look for pattern like "3h 20m" or "3小時20分"
+                                let duration = '';
+                                const durMatch = txt.match(/(\d+)\s*h\s*(\d+)\s*m/i);
+                                if (durMatch) {
+                                    duration = durMatch[1] + '小時' + durMatch[2] + '分';
+                                } else {
+                                    const durMatch2 = txt.match(/(\d+)小時(\d+)分/);
+                                    if (durMatch2) duration = durMatch2[0];
+                                    else {
+                                        // plain hours only e.g. "3h"
+                                        const hOnly = txt.match(/(\d+)\s*h(?!\d)/i);
+                                        if (hOnly) duration = hOnly[1] + '小時';
+                                    }
+                                }
+
+                                out.push({val, curr, airline, duration});
                             });
                             return out;
                         }
@@ -221,10 +237,10 @@ def scrape_destination(dest: dict) -> dict:
                     for p in raw_prices:
                         val = float(p["val"].replace(",", ""))
                         twd = round(val * rate) if p["curr"] == "USD" else round(val)
-                        converted.append((twd, p.get("airline", "")))
+                        converted.append((twd, p.get("airline", ""), p.get("duration", "")))
 
                     converted.sort(key=lambda x: x[0])
-                    cheapest, cheapest_airline = converted[0]
+                    cheapest, cheapest_airline, cheapest_duration = converted[0]
                     logger.info(
                         f"[{iata}] {dep_date}: TWD {cheapest:,} "
                         f"({cheapest_airline}, {len(raw_prices)} flights)"
@@ -234,6 +250,7 @@ def scrape_destination(dest: dict) -> dict:
                         best_price_twd = cheapest
                         best_date_str = dep_date
                         best_airline = cheapest_airline
+                        best_duration = cheapest_duration
 
                 except Exception as e:
                     logger.warning(f"[{iata}] Error on {dep_date}: {e}")
@@ -262,6 +279,7 @@ def scrape_destination(dest: dict) -> dict:
         "best_date": best_date_str,
         "booking_url": booking_url,
         "airline_name": best_airline or "",
+        "duration": best_duration or "",
         "status": "ok",
         "error_msg": None,
     }

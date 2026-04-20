@@ -111,6 +111,7 @@ def _card_html(row: dict) -> str:
     price = f"{int(row['price']):,}" if row.get("price") else "—"
     currency = row.get("currency", "TWD")
     date_zh = _fmt_date_zh(row.get("best_date", ""))
+    duration = row.get("duration", "") or ""
     airline_name = row.get("airline_name", "") or ""
     airline_logo = _airline_logo_url(airline_name)
     # Chinese airline name — exact match first, then partial
@@ -276,6 +277,7 @@ def _card_html(row: dict) -> str:
     </div>
     <div class="right-block">
       <div class="direct">直飛</div>
+      {'<div class="dest-date">' + duration + '</div>' if duration else ''}
     </div>
   </div>
 

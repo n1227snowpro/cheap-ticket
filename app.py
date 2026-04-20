@@ -198,6 +198,7 @@ def api_query():
         "currency": row["currency"],
         "best_date": row["best_date"],
         "airline_name": row.get("airline_name", ""),
+        "duration": row.get("duration", ""),
         "booking_url": row["booking_url"],
         "status": row["status"],
         "cached_at": row["cached_at"],
