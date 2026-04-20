@@ -106,77 +106,50 @@ def _card_html(row: dict) -> str:
 <style>
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
   body {{
-    width: 600px; height: 340px;
-    background: #f0f2f5;
+    width: 600px; height: 300px;
+    background: #1c2340;
     font-family: "Noto Sans CJK TC", "Noto Sans TC", "PingFang TC",
                  "Microsoft JhengHei", -apple-system, BlinkMacSystemFont, sans-serif;
-    display: flex; align-items: center; justify-content: center;
   }}
   .card {{
-    width: 560px; height: 300px;
-    background: #ffffff;
-    border-radius: 18px;
-    border: 1px solid #e0e4ea;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
-    padding: 26px 28px 22px;
-    position: relative;
+    width: 600px; height: 300px;
+    background: #1c2340;
+    padding: 28px 32px 24px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
   }}
 
-  /* ── Row 1: airline name + flag badge ── */
-  .row-top {{
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }}
+  /* ── Row 1: airline name ── */
   .airline-name {{
-    font-size: 18px;
+    font-size: 22px;
     font-weight: 700;
-    color: #111827;
-    letter-spacing: 0.2px;
-  }}
-  .flag-badge {{
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: #f3f4f6;
-    border: 1px solid #e0e4ea;
-    border-radius: 20px;
-    padding: 5px 14px 5px 8px;
-  }}
-  .flag {{ font-size: 22px; line-height: 1; }}
-  .flag-label {{
-    font-size: 14px;
-    color: #374151;
-    font-weight: 600;
+    color: #ffffff;
+    letter-spacing: 0.3px;
   }}
 
-  /* ── Row 2: logo + route + dest ── */
+  /* ── Row 2: logo + route info + right block ── */
   .row-mid {{
     display: flex;
     align-items: center;
-    gap: 18px;
+    gap: 16px;
     flex: 1;
-    padding: 14px 0 8px;
+    padding: 18px 0 10px;
   }}
   .airline-logo {{
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
     object-fit: contain;
-    background: #f9fafb;
-    border: 1px solid #e0e4ea;
+    background: #ffffff;
     flex-shrink: 0;
     padding: 4px;
   }}
   .airline-logo-placeholder {{
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background: #f3f4f6;
-    border: 1px solid #e0e4ea;
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    background: #2d3561;
     display: flex; align-items: center; justify-content: center;
     font-size: 26px;
     flex-shrink: 0;
@@ -184,94 +157,62 @@ def _card_html(row: dict) -> str:
   .route-block {{
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 6px;
   }}
   .route {{
-    font-size: 30px;
+    font-size: 34px;
     font-weight: 800;
-    color: #111827;
+    color: #ffffff;
     letter-spacing: 0.5px;
     line-height: 1;
   }}
   .route-sub {{
-    font-size: 13px;
-    color: #6b7280;
+    font-size: 14px;
+    color: #8892b0;
     letter-spacing: 0.3px;
   }}
-  .dest-block {{
+  .right-block {{
     margin-left: auto;
     text-align: right;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
   }}
-  .dest-zh {{
-    font-size: 36px;
-    font-weight: 800;
-    color: #111827;
-    line-height: 1;
+  .direct {{
+    font-size: 18px;
+    font-weight: 600;
+    color: #ffffff;
   }}
-  .dest-tag {{
-    font-size: 12px;
-    color: #9ca3af;
-    margin-top: 4px;
+  .dest-sub {{
+    font-size: 14px;
+    color: #8892b0;
   }}
 
-  /* ── Row 3: date + price ── */
+  /* ── Row 3: date left, price right ── */
   .row-bottom {{
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
-    border-top: 1px solid #f0f2f5;
-    padding-top: 14px;
-  }}
-  .date-block {{
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }}
-  .date-label {{
-    font-size: 11px;
-    color: #9ca3af;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
   }}
   .date-val {{
-    font-size: 15px;
-    color: #374151;
-    font-weight: 500;
+    font-size: 14px;
+    color: #8892b0;
   }}
   .price-block {{
     text-align: right;
   }}
-  .price-prefix {{
-    font-size: 16px;
-    color: #374151;
-    font-weight: 500;
-  }}
   .price {{
-    font-size: 40px;
+    font-size: 42px;
     font-weight: 800;
-    color: #111827;
+    color: #ffffff;
     letter-spacing: -1px;
     line-height: 1;
-  }}
-  .watermark {{
-    position: absolute;
-    bottom: 10px;
-    right: 16px;
-    font-size: 10px;
-    color: #d1d5db;
-    letter-spacing: 0.3px;
   }}
 </style>
 </head>
 <body>
 <div class="card">
-  <div class="row-top">
-    <div class="airline-name">{airline_label}</div>
-    <div class="flag-badge">
-      <span class="flag">{flag}</span>
-      <span class="flag-label">{dest_zh}</span>
-    </div>
-  </div>
+  <div class="airline-name">{airline_label}</div>
 
   <div class="row-mid">
     {logo_tag}
@@ -279,23 +220,18 @@ def _card_html(row: dict) -> str:
       <div class="route">TPE → {iata}</div>
       <div class="route-sub">{dest_en}</div>
     </div>
-    <div class="dest-block">
-      <div class="dest-zh">{dest_zh}</div>
-      <div class="dest-tag">直飛優先</div>
+    <div class="right-block">
+      <div class="direct">{dest_zh} {flag}</div>
+      <div class="dest-sub">最佳日期：{date_zh}</div>
     </div>
   </div>
 
   <div class="row-bottom">
-    <div class="date-block">
-      <div class="date-label">最佳日期</div>
-      <div class="date-val">{date_zh}</div>
-    </div>
+    <div class="date-val">直飛優先</div>
     <div class="price-block">
-      <span class="price-prefix">NT$</span>
-      <span class="price">{price}</span>
+      <span class="price">NT${price}</span>
     </div>
   </div>
-  <div class="watermark">flights.srv1213330.hstgr.cloud</div>
 </div>
 </body>
 </html>"""
@@ -315,11 +251,11 @@ def generate_card(row: dict) -> Path:
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        page = browser.new_page(viewport={"width": 600, "height": 340})
+        page = browser.new_page(viewport={"width": 600, "height": 300})
         page.set_content(html, wait_until="networkidle")
         page.screenshot(
             path=str(out_path),
-            clip={"x": 0, "y": 0, "width": 600, "height": 340},
+            clip={"x": 0, "y": 0, "width": 600, "height": 300},
         )
         browser.close()
 
