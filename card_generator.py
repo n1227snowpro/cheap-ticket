@@ -136,15 +136,15 @@ def _card_html(row: dict) -> str:
 <style>
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
   body {{
-    width: 600px; height: 280px;
+    width: 600px; height: 300px;
     background: #ffffff;
     font-family: "Noto Sans CJK TC", "Noto Sans TC", "PingFang TC",
                  "Microsoft JhengHei", -apple-system, BlinkMacSystemFont, sans-serif;
   }}
   .card {{
-    width: 600px; height: 280px;
+    width: 600px; height: 300px;
     background: #ffffff;
-    padding: 24px 28px 22px;
+    padding: 26px 30px 24px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -157,19 +157,21 @@ def _card_html(row: dict) -> str:
     justify-content: space-between;
   }}
   .airline-name {{
-    font-size: 20px;
-    font-weight: 700;
+    font-size: 28px;
+    font-weight: 800;
     color: #111827;
+    letter-spacing: -0.3px;
   }}
   .icons {{
     display: flex;
-    gap: 18px;
+    gap: 22px;
     align-items: center;
   }}
   .icon {{
-    width: 26px; height: 26px;
-    color: #374151;
+    width: 34px; height: 34px;
+    color: #111827;
     flex-shrink: 0;
+    stroke-width: 1.8;
   }}
 
   /* ── Row 2: logo + time/route + right ── */
@@ -300,11 +302,11 @@ def generate_card(row: dict) -> Path:
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        page = browser.new_page(viewport={"width": 600, "height": 280})
+        page = browser.new_page(viewport={"width": 600, "height": 300})
         page.set_content(html, wait_until="networkidle")
         page.screenshot(
             path=str(out_path),
-            clip={"x": 0, "y": 0, "width": 600, "height": 280},
+            clip={"x": 0, "y": 0, "width": 600, "height": 300},
         )
         browser.close()
 
