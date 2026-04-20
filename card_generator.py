@@ -227,13 +227,15 @@ def _card_html(row: dict) -> str:
     gap: 5px;
   }}
   .direct {{
-    font-size: 16px;
-    font-weight: 600;
+    font-size: 28px;
+    font-weight: 800;
     color: #111827;
+    letter-spacing: -0.3px;
   }}
   .dest-date {{
-    font-size: 13px;
-    color: #6b7280;
+    font-size: 20px;
+    font-weight: 600;
+    color: #374151;
   }}
 
   /* ── Row 3: price ── */
