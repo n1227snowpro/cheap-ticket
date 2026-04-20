@@ -37,6 +37,29 @@ AIRLINE_IATA = {
     "Tigerair Taiwan": "IT", "TransAsia": "GE",
 }
 
+AIRLINE_ZH = {
+    "China Airlines": "中華航空", "EVA Air": "長榮航空",
+    "Starlux Airlines": "星宇航空", "Starlux": "星宇航空",
+    "AirAsia": "亞洲航空", "AirAsia X": "亞洲航空 X",
+    "Thai Airways": "泰國航空", "Thai Lion Air": "泰獅航空",
+    "Singapore Airlines": "新加坡航空", "Scoot": "酷航",
+    "Cathay Pacific": "國泰航空",
+    "Hong Kong Express": "香港快運", "HK Express": "香港快運",
+    "Korean Air": "大韓航空", "Asiana Airlines": "韓亞航空", "Asiana": "韓亞航空",
+    "Japan Airlines": "日本航空", "All Nippon Airways": "全日空", "ANA": "全日空",
+    "Peach": "樂桃航空", "Peach Aviation": "樂桃航空",
+    "Jetstar": "捷星航空", "Jetstar Japan": "捷星日本", "Jetstar Asia": "捷星亞洲",
+    "Vietnam Airlines": "越南航空", "VietJet Air": "越捷航空", "VietJet": "越捷航空",
+    "Bamboo Airways": "竹子航空", "Philippine Airlines": "菲律賓航空",
+    "Cebu Pacific": "宿霧太平洋航空",
+    "Air France": "法國航空", "British Airways": "英國航空", "Lufthansa": "漢莎航空",
+    "United Airlines": "聯合航空", "American Airlines": "美國航空",
+    "Delta Air Lines": "達美航空", "Qantas": "澳洲航空",
+    "Garuda Indonesia": "印尼鷹航", "Malaysia Airlines": "馬來西亞航空",
+    "Air Macau": "澳門航空", "China Eastern": "中國東方航空",
+    "China Southern": "中國南方航空", "Tigerair Taiwan": "台灣虎航",
+}
+
 
 def _airline_logo_url(airline_name: str) -> str:
     """Return a logo URL for the airline, or empty string if unknown."""
@@ -90,6 +113,14 @@ def _card_html(row: dict) -> str:
     date_zh = _fmt_date_zh(row.get("best_date", ""))
     airline_name = row.get("airline_name", "") or ""
     airline_logo = _airline_logo_url(airline_name)
+    # Chinese airline name — exact match first, then partial
+    airline_zh = AIRLINE_ZH.get(airline_name, "")
+    if not airline_zh:
+        for en, zh in AIRLINE_ZH.items():
+            if en.lower() in airline_name.lower() or airline_name.lower() in en.lower():
+                airline_zh = zh
+                break
+    airline_label = airline_zh if airline_zh else airline_name if airline_name else "—"
 
     hide = "this.style.display='none'"
     logo_tag = (
@@ -97,7 +128,6 @@ def _card_html(row: dict) -> str:
         if airline_logo else
         '<div class="airline-logo-placeholder">✈</div>'
     )
-    airline_label = airline_name if airline_name else "—"
 
     return f"""<!DOCTYPE html>
 <html>
@@ -106,105 +136,113 @@ def _card_html(row: dict) -> str:
 <style>
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
   body {{
-    width: 600px; height: 300px;
-    background: #1c2340;
+    width: 600px; height: 280px;
+    background: #ffffff;
     font-family: "Noto Sans CJK TC", "Noto Sans TC", "PingFang TC",
                  "Microsoft JhengHei", -apple-system, BlinkMacSystemFont, sans-serif;
   }}
   .card {{
-    width: 600px; height: 300px;
-    background: #1c2340;
-    padding: 28px 32px 24px;
+    width: 600px; height: 280px;
+    background: #ffffff;
+    padding: 24px 28px 22px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
   }}
 
-  /* ── Row 1: airline name ── */
+  /* ── Row 1: airline name + icons ── */
+  .row-top {{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }}
   .airline-name {{
-    font-size: 22px;
+    font-size: 20px;
     font-weight: 700;
-    color: #ffffff;
-    letter-spacing: 0.3px;
+    color: #111827;
+  }}
+  .icons {{
+    display: flex;
+    gap: 18px;
+    align-items: center;
+  }}
+  .icon {{
+    width: 26px; height: 26px;
+    color: #374151;
+    flex-shrink: 0;
   }}
 
-  /* ── Row 2: logo + route info + right block ── */
+  /* ── Row 2: logo + time/route + right ── */
   .row-mid {{
     display: flex;
     align-items: center;
     gap: 16px;
     flex: 1;
-    padding: 18px 0 10px;
+    padding: 16px 0 10px;
   }}
   .airline-logo {{
-    width: 56px;
-    height: 56px;
-    border-radius: 12px;
+    width: 52px;
+    height: 52px;
+    border-radius: 10px;
     object-fit: contain;
-    background: #ffffff;
+    background: #f3f4f6;
     flex-shrink: 0;
-    padding: 4px;
+    padding: 3px;
+    border: 1px solid #e5e7eb;
   }}
   .airline-logo-placeholder {{
-    width: 56px;
-    height: 56px;
-    border-radius: 12px;
-    background: #2d3561;
+    width: 52px;
+    height: 52px;
+    border-radius: 10px;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
     display: flex; align-items: center; justify-content: center;
-    font-size: 26px;
+    font-size: 24px;
     flex-shrink: 0;
   }}
   .route-block {{
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 5px;
   }}
   .route {{
-    font-size: 34px;
+    font-size: 30px;
     font-weight: 800;
-    color: #ffffff;
-    letter-spacing: 0.5px;
+    color: #111827;
+    letter-spacing: 0.3px;
     line-height: 1;
   }}
   .route-sub {{
-    font-size: 14px;
-    color: #8892b0;
-    letter-spacing: 0.3px;
+    font-size: 13px;
+    color: #6b7280;
   }}
   .right-block {{
     margin-left: auto;
     text-align: right;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 5px;
   }}
   .direct {{
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 600;
-    color: #ffffff;
+    color: #111827;
   }}
-  .dest-sub {{
-    font-size: 14px;
-    color: #8892b0;
+  .dest-date {{
+    font-size: 13px;
+    color: #6b7280;
   }}
 
-  /* ── Row 3: date left, price right ── */
+  /* ── Row 3: price ── */
   .row-bottom {{
     display: flex;
     align-items: flex-end;
-    justify-content: space-between;
-  }}
-  .date-val {{
-    font-size: 14px;
-    color: #8892b0;
-  }}
-  .price-block {{
-    text-align: right;
+    justify-content: flex-end;
   }}
   .price {{
-    font-size: 42px;
+    font-size: 40px;
     font-weight: 800;
-    color: #ffffff;
+    color: #111827;
     letter-spacing: -1px;
     line-height: 1;
   }}
@@ -212,7 +250,21 @@ def _card_html(row: dict) -> str:
 </head>
 <body>
 <div class="card">
-  <div class="airline-name">{airline_label}</div>
+  <div class="row-top">
+    <div class="airline-name">{airline_label}</div>
+    <div class="icons">
+      <!-- Share icon -->
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+        <polyline points="16 6 12 2 8 6"/>
+        <line x1="12" y1="2" x2="12" y2="15"/>
+      </svg>
+      <!-- Heart icon -->
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+      </svg>
+    </div>
+  </div>
 
   <div class="row-mid">
     {logo_tag}
@@ -221,16 +273,13 @@ def _card_html(row: dict) -> str:
       <div class="route-sub">{dest_en}</div>
     </div>
     <div class="right-block">
-      <div class="direct">{dest_zh} {flag}</div>
-      <div class="dest-sub">最佳日期：{date_zh}</div>
+      <div class="direct">直飛</div>
+      <div class="dest-date">最佳日期：{date_zh}</div>
     </div>
   </div>
 
   <div class="row-bottom">
-    <div class="date-val">直飛優先</div>
-    <div class="price-block">
-      <span class="price">NT${price}</span>
-    </div>
+    <div class="price">NT${price}</div>
   </div>
 </div>
 </body>
@@ -251,11 +300,11 @@ def generate_card(row: dict) -> Path:
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        page = browser.new_page(viewport={"width": 600, "height": 300})
+        page = browser.new_page(viewport={"width": 600, "height": 280})
         page.set_content(html, wait_until="networkidle")
         page.screenshot(
             path=str(out_path),
-            clip={"x": 0, "y": 0, "width": 600, "height": 300},
+            clip={"x": 0, "y": 0, "width": 600, "height": 280},
         )
         browser.close()
 
