@@ -165,14 +165,14 @@ def _card_html(row: dict) -> str:
   }}
   .icons {{
     display: flex;
-    gap: 28px;
+    gap: 36px;
     align-items: center;
   }}
   .icon {{
-    width: 42px; height: 42px;
+    width: 56px; height: 56px;
     color: #111827;
     flex-shrink: 0;
-    stroke-width: 2;
+    stroke-width: 2.2;
   }}
 
   /* ── Row 2: logo + time/route + right ── */
