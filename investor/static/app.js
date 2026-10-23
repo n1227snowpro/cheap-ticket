@@ -5,10 +5,22 @@ const SR = (() => {
 
   const url = (u) => /^https?:\/\//i.test(u || "") ? esc(u) : "#";  // never render javascript: links from feeds
 
-  const api = async (path) => {
-    const r = await fetch(path);
-    if (!r.ok) throw new Error(`${path} → ${r.status}`);
-    return r.json();
+  const viewer = window.SR_VIEWER || { logged_in: false, plan: "free", limits: {} };
+  const csrf = () => document.querySelector('meta[name="csrf-token"]')?.content || "";
+
+  // 402 (upgrade required) comes back as data with `_status`, not as an exception.
+  const api = async (path, opts = {}) => {
+    const init = { ...opts, headers: { ...(opts.headers || {}) } };
+    if (opts.body !== undefined) {
+      init.headers["Content-Type"] = "application/json";
+      init.headers["X-CSRF-Token"] = csrf();
+      init.body = JSON.stringify(opts.body);
+    }
+    const r = await fetch(path, init);
+    if (!r.ok && r.status !== 402) throw new Error(`${path} → ${r.status}`);
+    const data = await r.json();
+    data._status = r.status;
+    return data;
   };
 
   // ── Formatting ──
@@ -51,16 +63,52 @@ const SR = (() => {
       ${tags(r.tags)}
     </a>`;
 
-  // ── Watchlist (per-browser) ──
+  // ── Upgrade prompts ──
+  const PLAN_NAMES = { pro: "Pro", premium: "Premium" };
+  const upgradeHref = () => viewer.logged_in ? "/pricing" : `/signup?next=${encodeURIComponent(location.pathname + location.search)}`;
+  const lockBox = (lock, text) => {
+    const plan = lock?.required_plan || "pro";
+    return `<div class="locked"><div class="lock-ico">🔒</div>
+      <p>${esc(text || (lock?.feature ? lock.feature + " is" : "This is"))} available on <b>${PLAN_NAMES[plan]}</b>.</p>
+      <a class="btn primary" href="/pricing">${viewer.logged_in ? "See plans" : "Start free trial"}</a></div>`;
+  };
+  const upsell = (text, plan = "pro") => `<div class="upsell"><span>🔓 ${esc(text)}</span>
+    <a class="btn primary sm" href="${viewer.logged_in ? "/pricing" : "/signup?next=/pricing"}">Upgrade to ${PLAN_NAMES[plan]}</a></div>`;
+
+  // ── Watchlist: saved to the account when logged in, else in this browser ──
   const WL = "sr-watchlist";
+  const local = {
+    get() { try { return JSON.parse(localStorage.getItem(WL)) || []; } catch (e) { return []; } },
+    set(v) { try { localStorage.setItem(WL, JSON.stringify(v)); } catch (e) {} },
+  };
   const watchlist = {
-    all() { try { return JSON.parse(localStorage.getItem(WL)) || []; } catch (e) { return []; } },
-    has(t) { return this.all().includes(t); },
-    toggle(t) {
-      const cur = this.all();
-      const next = cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t];
-      try { localStorage.setItem(WL, JSON.stringify(next)); } catch (e) {}
-      return next.includes(t);
+    _list: null,
+    async all() {
+      if (this._list) return this._list;
+      if (!viewer.logged_in) return (this._list = local.get());
+      let d = await api("/api/watchlist");
+      const pending = local.get().filter((t) => !d.tickers.includes(t));
+      if (pending.length) {   // first login on this browser: move the local list to the account
+        d = await api("/api/watchlist", { method: "POST", body: { tickers: pending } });
+        local.set([]);
+      }
+      return (this._list = d.tickers);
+    },
+    async has(t) { return (await this.all()).includes(t); },
+    async toggle(t) {
+      const cur = await this.all();
+      const on = cur.includes(t);
+      if (!viewer.logged_in) {
+        const max = viewer.limits.watchlist || 5;
+        if (!on && cur.length >= max) { alert(`Free accounts can watch ${max} stocks. Sign up to save more.`); return false; }
+        this._list = on ? cur.filter((x) => x !== t) : [...cur, t];
+        local.set(this._list);
+        return !on;
+      }
+      const d = await api("/api/watchlist", { method: on ? "DELETE" : "POST", body: { ticker: t } });
+      if (d._status === 402) { if (confirm(d.error + " Upgrade now?")) location = "/pricing"; return on; }
+      this._list = d.tickers;
+      return d.tickers.includes(t);
     },
   };
 
@@ -82,11 +130,11 @@ const SR = (() => {
       window.dispatchEvent(new Event("sr-meta"));
     } catch (e) { console.warn(e); }
     try {
-      const all = await api("/api/screen?limit=2000");
+      const all = await api("/api/tickers");
       $("#tickerlist").innerHTML = all.results.map((r) => `<option value="${esc(r.ticker)}">${esc(r.name)}</option>`).join("");
     } catch (e) {}
   };
 
-  return { $, esc, url, api, pct, x, n, money, cap, ago, chg, band, pill, tags, pickCard, watchlist, cssVar, initChrome };
+  return { $, esc, url, api, viewer, csrf, lockBox, upsell, upgradeHref, pct, x, n, money, cap, ago, chg, band, pill, tags, pickCard, watchlist, cssVar, initChrome };
 })();
 SR.initChrome();

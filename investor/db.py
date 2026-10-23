@@ -106,6 +106,57 @@ def init_db():
                 created_at   TEXT
             );
 
+            CREATE TABLE IF NOT EXISTS users (
+                id                     INTEGER PRIMARY KEY AUTOINCREMENT,
+                email                  TEXT UNIQUE NOT NULL,
+                password_hash          TEXT,
+                google_sub             TEXT UNIQUE,
+                email_verified         INTEGER DEFAULT 0,
+                plan                   TEXT DEFAULT 'free',     -- free | pro | premium
+                plan_status            TEXT,                     -- Stripe subscription status
+                plan_interval          TEXT,                     -- month | year
+                current_period_end     INTEGER,                  -- unix seconds
+                cancel_at_period_end   INTEGER DEFAULT 0,
+                stripe_customer_id     TEXT UNIQUE,
+                stripe_subscription_id TEXT,
+                created_at             TEXT,
+                last_login_at          TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS auth_tokens (
+                token_hash   TEXT PRIMARY KEY,
+                user_id      INTEGER NOT NULL,
+                kind         TEXT NOT NULL,                      -- verify | reset
+                expires_at   TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS usage (
+                subject      TEXT,                               -- "u:<id>" or "a:<anon id>"
+                day          TEXT,
+                stock_views  TEXT DEFAULT '[]',                  -- distinct tickers viewed
+                PRIMARY KEY (subject, day)
+            );
+
+            CREATE TABLE IF NOT EXISTS user_watchlist (
+                user_id      INTEGER,
+                ticker       TEXT,
+                added_at     TEXT,
+                PRIMARY KEY (user_id, ticker)
+            );
+
+            CREATE TABLE IF NOT EXISTS stripe_events (
+                id           TEXT PRIMARY KEY,
+                type         TEXT,
+                received_at  TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS alert_state (
+                user_id      INTEGER,
+                ticker       TEXT,
+                snapshot     TEXT,                               -- last scores/tags e-mailed about
+                PRIMARY KEY (user_id, ticker)
+            );
+
             CREATE TABLE IF NOT EXISTS job_log (
                 id           INTEGER PRIMARY KEY AUTOINCREMENT,
                 job          TEXT,
@@ -328,3 +379,133 @@ def clear_all():
     with _conn() as c:
         for t in ("fundamentals", "prices", "analysis", "news", "social", "posts", "insider", "digests"):
             c.execute(f"DELETE FROM {t}")
+
+
+# ── Users ────────────────────────────────────────────────────────────────────
+
+USER_FIELDS = ("email", "password_hash", "google_sub", "email_verified", "plan", "plan_status",
+               "plan_interval", "current_period_end", "cancel_at_period_end", "stripe_customer_id",
+               "stripe_subscription_id", "last_login_at")
+
+
+def create_user(email: str, password_hash: str = None, google_sub: str = None, verified=False) -> int:
+    with _conn() as c:
+        return c.execute(
+            "INSERT INTO users (email, password_hash, google_sub, email_verified, created_at) VALUES (?,?,?,?,?)",
+            (email.lower(), password_hash, google_sub, int(verified), _now())).lastrowid
+
+
+def get_user(user_id=None, email=None, google_sub=None, stripe_customer_id=None):
+    for col, val in (("id", user_id), ("email", email and email.lower()), ("google_sub", google_sub),
+                     ("stripe_customer_id", stripe_customer_id)):
+        if val is not None:
+            with _conn() as c:
+                r = c.execute(f"SELECT * FROM users WHERE {col} = ?", (val,)).fetchone()
+                return dict(r) if r else None
+    return None
+
+
+def update_user(user_id: int, **fields):
+    bad = set(fields) - set(USER_FIELDS)
+    if bad:
+        raise ValueError(f"Unknown user fields: {bad}")
+    if not fields:
+        return
+    cols = ", ".join(f"{k} = ?" for k in fields)
+    with _conn() as c:
+        c.execute(f"UPDATE users SET {cols} WHERE id = ?", (*fields.values(), user_id))
+
+
+def delete_user(user_id: int):
+    with _conn() as c:
+        for t in ("user_watchlist", "auth_tokens", "alert_state"):
+            c.execute(f"DELETE FROM {t} WHERE user_id = ?", (user_id,))
+        c.execute("DELETE FROM usage WHERE subject = ?", (f"u:{user_id}",))
+        c.execute("DELETE FROM users WHERE id = ?", (user_id,))
+
+
+def list_users(limit: int = 500) -> list:
+    with _conn() as c:
+        return [dict(r) for r in c.execute("SELECT * FROM users ORDER BY id DESC LIMIT ?", (limit,))]
+
+
+# ── Auth tokens (e-mail verification, password reset) ───────────────────────
+
+def put_token(token_hash: str, user_id: int, kind: str, ttl_hours: int):
+    exp = (datetime.now(timezone.utc) + timedelta(hours=ttl_hours)).isoformat()
+    with _conn() as c:
+        c.execute("DELETE FROM auth_tokens WHERE user_id = ? AND kind = ?", (user_id, kind))
+        c.execute("INSERT INTO auth_tokens VALUES (?,?,?,?)", (token_hash, user_id, kind, exp))
+
+
+def take_token(token_hash: str, kind: str):
+    """Single use: returns user_id and deletes the token, or None if missing/expired."""
+    with _conn() as c:
+        r = c.execute("SELECT * FROM auth_tokens WHERE token_hash = ? AND kind = ?", (token_hash, kind)).fetchone()
+        if not r:
+            return None
+        c.execute("DELETE FROM auth_tokens WHERE token_hash = ?", (token_hash,))
+        return r["user_id"] if r["expires_at"] > _now() else None
+
+
+# ── Metering ────────────────────────────────────────────────────────────────
+
+def record_stock_view(subject: str, ticker: str) -> list:
+    """Adds ticker to today's distinct views for subject; returns the list."""
+    day = datetime.now(timezone.utc).date().isoformat()
+    with _conn() as c:
+        r = c.execute("SELECT stock_views FROM usage WHERE subject = ? AND day = ?", (subject, day)).fetchone()
+        views = json.loads(r["stock_views"]) if r else []
+        if ticker not in views:
+            views.append(ticker)
+            c.execute("INSERT OR REPLACE INTO usage VALUES (?,?,?)", (subject, day, json.dumps(views)))
+        return views
+
+
+def stock_views_today(subject: str) -> list:
+    day = datetime.now(timezone.utc).date().isoformat()
+    with _conn() as c:
+        r = c.execute("SELECT stock_views FROM usage WHERE subject = ? AND day = ?", (subject, day)).fetchone()
+        return json.loads(r["stock_views"]) if r else []
+
+
+# ── Account watchlist ───────────────────────────────────────────────────────
+
+def watchlist_get(user_id: int) -> list:
+    with _conn() as c:
+        return [r["ticker"] for r in c.execute(
+            "SELECT ticker FROM user_watchlist WHERE user_id = ? ORDER BY added_at", (user_id,))]
+
+
+def watchlist_add(user_id: int, ticker: str):
+    with _conn() as c:
+        c.execute("INSERT OR IGNORE INTO user_watchlist VALUES (?,?,?)", (user_id, ticker, _now()))
+
+
+def watchlist_remove(user_id: int, ticker: str):
+    with _conn() as c:
+        c.execute("DELETE FROM user_watchlist WHERE user_id = ? AND ticker = ?", (user_id, ticker))
+
+
+# ── Stripe idempotency & alerts ─────────────────────────────────────────────
+
+def stripe_event_seen(event_id: str) -> bool:
+    with _conn() as c:
+        return c.execute("SELECT 1 FROM stripe_events WHERE id = ?", (event_id,)).fetchone() is not None
+
+
+def mark_stripe_event(event_id: str, event_type: str):
+    """Called only after successful processing, so failed events are retried by Stripe."""
+    with _conn() as c:
+        c.execute("INSERT OR IGNORE INTO stripe_events VALUES (?,?,?)", (event_id, event_type, _now()))
+
+
+def alert_snapshot(user_id: int, ticker: str):
+    with _conn() as c:
+        r = c.execute("SELECT snapshot FROM alert_state WHERE user_id = ? AND ticker = ?", (user_id, ticker)).fetchone()
+        return json.loads(r["snapshot"]) if r else None
+
+
+def put_alert_snapshot(user_id: int, ticker: str, snap: dict):
+    with _conn() as c:
+        c.execute("INSERT OR REPLACE INTO alert_state VALUES (?,?,?)", (user_id, ticker, json.dumps(snap)))

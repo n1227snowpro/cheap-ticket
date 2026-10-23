@@ -15,6 +15,33 @@ plain English. Educational only — not financial advice.
 | **Watchlist** (`/watchlist`) | ★ stocks saved in the browser |
 | **How it works** (`/learn`) | Every indicator explained |
 
+## Plans (SaaS)
+| | Free | Pro $12/mo · $120/yr | Premium $29/mo · $290/yr |
+|---|---|---|---|
+| Today's picks | top 3 per list | full | full |
+| Stock pages | 3 per day | unlimited | unlimited |
+| Screener | Buffett + Dividend presets, top 10 rows | all presets & filters | same |
+| News & social feed | latest 10 | full | full |
+| Watchlist (saved to account) | 5 | 50 | 200 |
+| Insider trades & social buzz | – | ✓ | ✓ |
+| AI brief + AI headline summaries, e-mail alerts, CSV export | – | – | ✓ |
+
+Limits live in `entitlements.py` (`PLANS`) and are enforced in the JSON API. Pro has a 7-day trial
+(`TRIAL_DAYS`). Accounts: e-mail + password (confirmation e-mail, reset link) and Google sign-in.
+Payments: Stripe Checkout + Customer Portal; plan state is mirrored from Stripe webhooks.
+
+### Going live checklist
+1. Merge to `main` → the deploy workflow builds the `stockradar` container.
+2. On the server, copy `investor/.env.example` to `/opt/cheap-ticket/.env` and fill it in, then
+   `docker-compose up -d stockradar`.
+3. Stripe: `STRIPE_SECRET_KEY=sk_live_… python3 investor/scripts/stripe_setup.py` → paste the price IDs;
+   add a webhook endpoint `https://invest.srv1213330.hstgr.cloud/billing/webhook` (events listed by the
+   script) and put its secret in `STRIPE_WEBHOOK_SECRET`; enable the Customer Portal with plan switching.
+4. Google: create an OAuth client (Web), redirect URI `https://invest.srv1213330.hstgr.cloud/auth/google/callback`.
+5. SMTP (Resend, Postmark, SES, Gmail…) for confirmation/reset/alert e-mails — without it links are only logged.
+6. Sign up with an address in `ADMIN_EMAILS`, confirm it, and open `/admin` (users, MRR, data jobs).
+7. Review `/terms` and `/privacy` (templates) and your data providers' commercial-use terms.
+
 ## Indicators
 Value: P/E, P/B, P/FCF, EV/EBITDA, Graham Number, 2-stage DCF margin of safety, FCF & dividend yield.
 Growth: 3y revenue/EPS CAGR, forward EPS growth, 90-day estimate revisions, PEG, gross-margin trend, Rule of 40.
@@ -50,4 +77,5 @@ With Docker, the root `docker-compose.yml` has a `stockradar` service
 ## Code map
 `metrics.py` indicator formulas · `scoring.py` percentiles, tags, presets ·
 `providers/` EODHD, SEC, Reddit/StockTwits, Claude · `scheduler.py` background jobs ·
-`db.py` SQLite · `fixtures.py` demo data · `app.py` routes · `templates/`, `static/` UI.
+`db.py` SQLite · `fixtures.py` demo data · `app.py` routes & plan gating · `auth.py` accounts ·
+`billing.py` Stripe · `entitlements.py` plans · `mailer.py` SMTP · `templates/`, `static/` UI.

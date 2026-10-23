@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Sign up — StockRadar{% endblock %}
+{% block content %}
+<div class="auth card">
+  <h1>Create your free account</h1>
+  <p class="sub">Free forever. Upgrade any time for the full screener and unlimited stock pages.</p>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="next" value="{{ next }}">
+    <label>E-mail<input type="email" name="email" required autocomplete="email" autofocus></label>
+    <label>Password <span class="muted">(8+ characters)</span><input type="password" name="password" minlength="8" required autocomplete="new-password"></label>
+    <label class="check"><input type="checkbox" name="agree" value="1" required>
+      <span>I agree to the <a href="/terms" target="_blank">Terms</a> and <a href="/privacy" target="_blank">Privacy Policy</a>, and understand StockRadar is not financial advice.</span></label>
+    <button class="btn primary">Create account</button>
+  </form>
+  {% include "auth/_google.html" %}
+  <p class="small" style="margin-top:16px">Already have an account? <a href="/login{{ '?next=' ~ next if next }}">Log in</a></p>
+</div>
+{% endblock %}

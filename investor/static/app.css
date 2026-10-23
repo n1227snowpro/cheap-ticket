@@ -193,3 +193,68 @@ td .score { min-width: 38px; }
   h1 { font-size: 22px; }
   .co { max-width: 150px; }
 }
+
+/* ── Accounts & plans ────────────────────────────────── */
+.userbox { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+.btn.sm { padding: 5px 10px; font-size: 13px; }
+a.btn:hover { text-decoration: none; }
+.linkish { background: none; border: 0; color: var(--accent); cursor: pointer; font: inherit; font-size: 13px; padding: 0; }
+form.inline { display: inline; margin: 0; }
+.plan-badge { font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); }
+.plan-badge.plan-pro { background: var(--tag-bg); color: var(--tag-text); }
+.plan-badge.plan-premium { background: #f3e8ff; color: #6b21a8; }
+:root[data-theme="dark"] .plan-badge.plan-premium { background: #35204a; color: #d8b4fe; }
+@media (prefers-color-scheme: dark) { :root:where(:not([data-theme="light"])) .plan-badge.plan-premium { background: #35204a; color: #d8b4fe; } }
+.flashes { max-width: 1200px; margin: 12px auto 0; padding: 0 16px; display: grid; gap: 6px; }
+.flash { padding: 10px 14px; border-radius: 10px; font-size: 14px; background: var(--surface-2); }
+.flash.ok { background: var(--good-bg); color: var(--good); }
+.flash.error { background: var(--bad-bg); color: var(--bad); }
+
+/* Locked / upgrade */
+.locked { position: relative; border: 1px dashed var(--border); border-radius: 12px; padding: 20px; text-align: center; background: var(--surface); }
+.locked .lock-ico { font-size: 22px; }
+.locked p { margin: 6px 0 12px; color: var(--text-2); font-size: 14px; }
+.upsell { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border-radius: 12px; background: var(--tag-bg); color: var(--tag-text); font-size: 14px; margin: 12px 0; }
+.blur { filter: blur(5px); pointer-events: none; user-select: none; }
+
+/* Pricing */
+.toggle { display: inline-flex; background: var(--surface-2); border-radius: 999px; padding: 3px; margin: 8px 0 20px; }
+.toggle button { border: 0; background: none; padding: 6px 14px; border-radius: 999px; cursor: pointer; font: inherit; font-size: 14px; color: var(--text-2); }
+.toggle button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; align-items: stretch; }
+.plan { display: flex; flex-direction: column; gap: 10px; }
+.plan.featured { border: 2px solid var(--accent); }
+.plan .amount { font-size: 34px; font-weight: 700; letter-spacing: -.02em; }
+.plan .amount span { font-size: 14px; font-weight: 400; color: var(--text-2); }
+.plan ul { list-style: none; padding: 0; margin: 0; font-size: 14px; flex: 1; }
+.plan li { padding: 5px 0; display: grid; grid-template-columns: 20px 1fr; }
+.plan li.no { color: var(--muted); }
+.plan form, .plan .btn { width: 100%; }
+.plan .btn { display: block; text-align: center; padding: 10px; }
+.plan { position: relative; }
+.ribbon { position: absolute; top: -11px; left: 16px; font-size: 12px; font-weight: 600; background: var(--accent); color: #fff; border-radius: 999px; padding: 2px 10px; }
+.faq { max-width: 760px; }
+.faq details { padding: 10px 0; border-bottom: 1px solid var(--border); }
+.faq summary { cursor: pointer; font-weight: 600; }
+
+/* Auth forms */
+.auth { max-width: 400px; margin: 24px auto; }
+.auth form { display: grid; gap: 12px; }
+.auth label { display: grid; gap: 4px; font-size: 13px; color: var(--text-2); }
+.auth input[type=email], .auth input[type=password], .auth input[type=text] {
+  padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font: inherit; font-size: 15px;
+}
+.auth .btn { padding: 10px; font-size: 15px; width: 100%; }
+.auth .check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; }
+.or { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; margin: 12px 0; }
+.or::before, .or::after { content: ""; flex: 1; border-top: 1px solid var(--border); }
+.gbtn { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.kvlist { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; font-size: 14px; }
+.kvlist dt { color: var(--text-2); }
+.kvlist dd { margin: 0; }
+.prose { max-width: 760px; font-size: 15px; }
+.prose h2 { margin-top: 24px; }
+@media (max-width: 720px) {
+  .userbox { margin-left: auto; }
+  .userbox .small:not(.plan-badge) { font-size: 12px; }
+}

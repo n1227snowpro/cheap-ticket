@@ -12,6 +12,13 @@
   let d;
   try { d = await api("/api/stock/" + encodeURIComponent(T)); }
   catch (e) { $("#root").innerHTML = `<h1>${esc(T)}</h1><p class="empty">We don't track this ticker (yet). Try the <a href="/screener">screener</a>.</p>`; return; }
+  if (d._status === 402) {
+    $("#root").innerHTML = `<h1>${esc(T)}</h1>${SR.lockBox({ required_plan: "pro" },
+      `You've used your ${d.limit} free stock analyses for today. Unlimited stock pages are`)}
+      <p class="small muted" style="text-align:center">Viewed today: ${d.viewed_today.map((t) => `<a href="/stock/${encodeURIComponent(t)}">${esc(t)}</a>`).join(", ")} — those stay open.</p>`;
+    return;
+  }
+  const L = d.locked || {};
   const m = d.metrics;
   const px = d.prices.map((p) => p[1]);
   const day = px.length > 1 ? px.at(-1) / px.at(-2) - 1 : null;
@@ -30,7 +37,7 @@
       <div>
         <div class="small muted">${esc(d.sector)} · ${esc(d.profile.industry || "")}</div>
         <h1>${esc(d.name)} <span class="muted">(${esc(d.ticker)})</span>
-          <button class="star ${watchlist.has(T) ? "on" : ""}" id="star" title="Add to watchlist" aria-label="Toggle watchlist">★</button></h1>
+          <button class="star ${(await watchlist.has(T)) ? "on" : ""}" id="star" title="Add to watchlist" aria-label="Toggle watchlist">★</button></h1>
         <div><span class="price num">${money(d.price)}</span> ${chg(day)} <span class="muted small">today · Market cap ${cap(d.market_cap)}</span></div>
         <div style="margin-top:8px" class="tags">${d.tags.map((t) => `<span class="tag ${t === "Hype Warning" ? "warn" : ""}" title="${esc(d.tag_info[t] || "")}">${esc(t)}</span>`).join("")}</div>
       </div>
@@ -107,8 +114,8 @@
       </div>
       <div class="card">
         <h3>Social mentions per day (30 days)</h3>
-        <div class="small muted">${m.mentions_7d ?? 0} mentions this week${m.bull_ratio != null ? ` · ${pct(m.bull_ratio, 0)} bullish` : ""}${m.buzz_z != null ? ` · buzz ${m.buzz_z >= 0 ? "+" : ""}${n(m.buzz_z, 1)}σ vs normal` : ""}</div>
-        <div class="chart-box sm"><canvas id="buzzChart" aria-label="Social mentions per day"></canvas></div>
+        ${L.insider_social ? SR.lockBox(L.insider_social, "Reddit & StockTwits buzz") : `<div class="small muted">${m.mentions_7d ?? 0} mentions this week${m.bull_ratio != null ? ` · ${pct(m.bull_ratio, 0)} bullish` : ""}${m.buzz_z != null ? ` · buzz ${m.buzz_z >= 0 ? "+" : ""}${n(m.buzz_z, 1)}σ vs normal` : ""}</div>
+        <div class="chart-box sm"><canvas id="buzzChart" aria-label="Social mentions per day"></canvas></div>`}
       </div>
     </div>
 
@@ -119,15 +126,17 @@
           <div><a class="title" href="${SR.url(it.url)}" target="_blank" rel="noopener">${esc(it.title)}</a>
           <div class="meta">${esc(it.source || "")}${it.impact ? ` · ${esc(it.impact)} impact` : ""}</div>
           ${it.summary ? `<div class="summ">${esc(it.summary)}</div>` : ""}</div></li>`).join("") || `<li class="empty">No recent news.</li>`}</ul>
+        ${L.ai_summaries ? SR.upsell("Plain-English AI summaries of every headline", "premium") : ""}
       </div>
       <div class="card">
         <h3>Insider trades (180 days)</h3>
+        ${L.insider_social ? SR.lockBox(L.insider_social, "Insider buying & selling (SEC Form 4) and social posts") : `
         ${d.insider.length ? `<div class="table-wrap"><table><thead><tr><th class="l">Date</th><th class="l">Who</th><th>Type</th><th>Shares</th><th>Value</th></tr></thead><tbody>
           ${d.insider.map((t) => `<tr><td class="l">${esc(t.filed_at)}</td><td class="l">${esc(t.owner)}<div class="small muted">${esc(t.title || "")}</div></td>
           <td class="${t.code === "P" ? "chg-up" : "chg-dn"}">${t.code === "P" ? "Buy" : "Sell"}</td><td class="num">${Math.round(t.shares).toLocaleString()}</td><td class="num">${cap(t.value)}</td></tr>`).join("")}
           </tbody></table></div>` : `<p class="empty">No open-market insider trades reported.</p>`}
         <h3 style="margin-top:16px">Social posts</h3>
-        <ul class="feed">${d.posts.map((p) => `<li><div class="meta">${ago(p.created_at)}<br>▲ ${p.score ?? 0}</div><div><a class="title" href="${SR.url(p.url)}" target="_blank" rel="noopener">${esc(p.title)}</a><div class="meta">${esc(p.source)}</div></div></li>`).join("") || `<li class="empty">No recent posts.</li>`}</ul>
+        <ul class="feed">${d.posts.map((p) => `<li><div class="meta">${ago(p.created_at)}<br>▲ ${p.score ?? 0}</div><div><a class="title" href="${SR.url(p.url)}" target="_blank" rel="noopener">${esc(p.title)}</a><div class="meta">${esc(p.source)}</div></div></li>`).join("") || `<li class="empty">No recent posts.</li>`}</ul>`}
       </div>
     </div>
 
@@ -135,7 +144,9 @@
     <div class="grid g3">${d.peers.slice(0, 6).map((r) => SR.pickCard(r)).join("") || `<p class="empty">No peers tracked.</p>`}</div>
   `;
 
-  $("#star").addEventListener("click", (e) => e.currentTarget.classList.toggle("on", watchlist.toggle(T)));
+  $("#star").addEventListener("click", async (e) => { const b = e.currentTarget; b.classList.toggle("on", await watchlist.toggle(T)); });
+  if (d.views_left != null) $("#root").insertAdjacentHTML("afterbegin",
+    SR.upsell(`Free plan: ${d.views_left} stock ${d.views_left === 1 ? "analysis" : "analyses"} left today.`));
 
   const showChecks = (g) => {
     const items = d.checks.filter((c) => c.group === g);
@@ -184,7 +195,7 @@
         scales: { ...axes, y: { ...axes.y, ticks: { color: ink, callback: (v) => cap(v) } } } },
     }));
 
-    charts.push(new Chart($("#buzzChart"), {
+    if ($("#buzzChart")) charts.push(new Chart($("#buzzChart"), {
       type: "bar",
       data: { labels: d.social.map((s) => s.day.slice(5)), datasets: [{ label: "Mentions", data: d.social.map((s) => s.mentions), backgroundColor: s1, borderRadius: 3 }] },
       options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: axes },

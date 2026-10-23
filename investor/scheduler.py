@@ -229,6 +229,40 @@ def job_digest():
     return 1, 0
 
 
+def job_alerts():
+    """E-mail Premium users when a watchlist stock's scores move ≥10 points or gains/loses a tag."""
+    import entitlements
+    import mailer
+    rows = {r["ticker"]: r for r in db.get_analysis()}
+    base = (config.get("base_url") or "").rstrip("/")
+    sent = 0
+    for u in db.list_users(limit=100000):
+        if not u["email_verified"] or not entitlements.PLANS[entitlements.effective_plan(u)]["alerts"]:
+            continue
+        lines = []
+        for t in db.watchlist_get(u["id"]):
+            r = rows.get(t)
+            if not r:
+                continue
+            snap = {g: r[g] for g in ("composite", "value", "growth", "quality", "momentum")} | {"tags": r["tags"]}
+            prev = db.alert_snapshot(u["id"], t)
+            db.put_alert_snapshot(u["id"], t, snap)
+            if not prev:
+                continue
+            changes = [f"{g} {prev[g]:.0f} → {snap[g]:.0f}" for g in ("composite", "value", "growth", "quality", "momentum")
+                       if prev.get(g) is not None and snap[g] is not None and abs(snap[g] - prev[g]) >= 10]
+            changes += [f"new tag: {x}" for x in snap["tags"] if x not in prev["tags"]]
+            changes += [f"lost tag: {x}" for x in prev["tags"] if x not in snap["tags"]]
+            if changes:
+                lines.append(f"{t} ({r['name']}): " + "; ".join(changes) + f"\n  {base}/stock/{t}")
+        if lines:
+            mailer.send(u["email"], f"StockRadar alerts: {len(lines)} watchlist change(s)",
+                        "Changes since your last alert:\n\n" + "\n".join(lines) +
+                        f"\n\nManage your watchlist: {base}/watchlist\n\nEducational only — not financial advice.")
+            sent += 1
+    return sent, 0
+
+
 def _benchmark_return(days):
     px = [p[1] for p in db.get_prices(BENCHMARK)]
     return px[-1] / px[-days - 1] - 1 if len(px) > days else None
@@ -244,6 +278,7 @@ JOBS = {
     "social": (job_social, 1 / 3, True),
     "insider": (job_insider, 24, True),
     "digest": (job_digest, 24, False),
+    "alerts": (job_alerts, 24, False),
 }
 
 _state = {name: {"running": False, "next_run": None} for name in JOBS}
@@ -315,7 +350,7 @@ def start():
         logger.info("Live key configured: clearing demo data")
         db.clear_all()
         stocks = {}
-    order = ["fundamentals", "prices", "insider", "news", "social", "digest"]
+    order = ["fundamentals", "prices", "insider", "news", "social", "digest", "alerts"]
     if not stocks:
         # First boot: run everything once, in dependency order; each job then reschedules itself.
         threading.Thread(target=lambda: [_run(n) for n in order], daemon=True).start()

@@ -22,6 +22,8 @@ def test_today(client):
 
 
 def test_screen_and_sort(client):
+    from helpers import login_as, make_user
+    login_as(client, make_user("premium"))
     d = client.get("/api/screen?preset=dividend&sort=dividend_yield&dir=desc").get_json()
     ys = [r["m"]["dividend_yield"] for r in d["results"]]
     assert d["total"] == len(ys) > 0 and ys == sorted(ys, reverse=True)
@@ -29,6 +31,8 @@ def test_screen_and_sort(client):
 
 
 def test_stock_detail(client):
+    from helpers import login_as, make_user
+    login_as(client, make_user("pro"))
     d = client.get("/api/stock/byte").get_json()
     assert d["ticker"] == "BYTE" and d["checks"] and d["prices"] and d["news"]
     assert client.get("/api/stock/NOPE").status_code == 404
@@ -37,4 +41,5 @@ def test_stock_detail(client):
 def test_feed_and_refresh(client):
     items = client.get("/api/feed?mood=negative").get_json()["items"]
     assert items and all(i["sentiment"] < -0.1 for i in items)
-    assert client.post("/api/refresh?job=prices").status_code == 400  # jobs disabled in demo mode
+    r = client.post("/api/refresh?job=prices", headers={"X-CSRF-Token": "test-csrf"})
+    assert r.status_code == 404                                         # admins only

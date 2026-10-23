@@ -43,6 +43,23 @@ services:
       - REDDIT_CLIENT_ID=${REDDIT_CLIENT_ID:-}
       - REDDIT_CLIENT_SECRET=${REDDIT_CLIENT_SECRET:-}
       - SEC_USER_AGENT=${SEC_USER_AGENT:-StockRadar admin@example.com}
+      - BASE_URL=${BASE_URL:-https://invest.srv1213330.hstgr.cloud}
+      - SECRET_KEY=${SECRET_KEY:-}
+      - ADMIN_EMAILS=${ADMIN_EMAILS:-}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
+      - STRIPE_PRICE_PRO_MONTH=${STRIPE_PRICE_PRO_MONTH:-}
+      - STRIPE_PRICE_PRO_YEAR=${STRIPE_PRICE_PRO_YEAR:-}
+      - STRIPE_PRICE_PREMIUM_MONTH=${STRIPE_PRICE_PREMIUM_MONTH:-}
+      - STRIPE_PRICE_PREMIUM_YEAR=${STRIPE_PRICE_PREMIUM_YEAR:-}
+      - TRIAL_DAYS=${TRIAL_DAYS:-7}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM=${SMTP_FROM:-StockRadar <no-reply@example.com>}
     labels:
       - traefik.enable=true
       - traefik.http.routers.stockradar.rule=Host(`invest.srv1213330.hstgr.cloud`)

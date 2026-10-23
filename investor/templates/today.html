@@ -48,7 +48,10 @@
   fill("#insiders", d.insiders, (r) => `<div class="small"><b>${r.m.insider_buyers}</b> insider buyer${r.m.insider_buyers === 1 ? "" : "s"} in 90 days</div>`);
   fill("#buzzing", d.buzzing, (r) => `<div class="small">${r.m.mentions_7d ?? 0} mentions this week · buzz ${r.m.buzz_z == null ? "—" : (r.m.buzz_z >= 0 ? "+" : "") + r.m.buzz_z.toFixed(1) + "σ"}</div>`);
 
-  $("#digest").textContent = d.digest?.text || "The daily brief appears here once the first scan finishes (needs a Claude API key).";
+  if (d.locked.digest) $("#digest").outerHTML = SR.lockBox(d.locked.digest, "Your AI-written morning brief");
+  else $("#digest").textContent = d.digest?.text || "The daily brief appears here once the first scan finishes.";
+  if (d.locked.more) ["#value", "#growth", "#insiders", "#buzzing"].forEach((id) =>
+    $(id).insertAdjacentHTML("afterend", SR.upsell("Free shows the top 3 — see every pick with Pro.")));
 
   $("#heat").innerHTML = d.sectors.map((s) => `<div><b>${esc(s.sector)}</b>${chg(s.ret_1m)} <span class="muted">· ${s.n} stocks</span></div>`).join("") || `<div class="empty">No data yet.</div>`;
 

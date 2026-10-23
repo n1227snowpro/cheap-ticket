@@ -7,7 +7,8 @@
 <div class="presets" id="presets"><button class="chip on" data-p="">All stocks</button></div>
 <p id="presetDesc" class="small muted" style="margin:-4px 0 12px"></p>
 
-<div class="card">
+<div class="card" id="filterCard">
+  {% if not viewer.limits.filters %}<p class="small" style="margin:0 0 10px">🔒 Custom filters are a <a href="/pricing">Pro</a> feature — Free accounts can use the Buffett-style and Dividend presets.</p>{% endif %}
   <div class="filters">
     <label>Min value score <span id="v_min_value">0</span><input type="range" min="0" max="90" step="5" value="0" data-k="min_value"></label>
     <label>Min growth score <span id="v_min_growth">0</span><input type="range" min="0" max="90" step="5" value="0" data-k="min_growth"></label>
@@ -21,13 +22,18 @@
   </div>
 </div>
 
-<div class="section"><h2 id="count">Loading…</h2><button class="btn" id="reset">Reset filters</button></div>
+<div class="section"><h2 id="count">Loading…</h2>
+  <div style="display:flex;gap:8px">
+    <button class="btn" id="csv" title="Download the current results as CSV">⬇ CSV{% if not viewer.limits.csv %} 🔒{% endif %}</button>
+    <button class="btn" id="reset">Reset filters</button>
+  </div></div>
 <div class="card table-wrap" style="padding:0">
   <table>
     <thead><tr id="head"></tr></thead>
     <tbody id="rows"></tbody>
   </table>
 </div>
+<div id="more"></div>
 {% endblock %}
 {% block scripts %}
 <script>
@@ -85,7 +91,10 @@
 
   addEventListener("sr-meta", () => {
     const m = SR.meta;
-    $("#presets").insertAdjacentHTML("beforeend", Object.entries(m.presets).map(([k, p]) => `<button class="chip" data-p="${k}" title="${esc(p.desc)}">${esc(p.name)}</button>`).join(""));
+    const allowed = SR.viewer.limits.presets;   // null = all presets
+    $("#presets").insertAdjacentHTML("beforeend", Object.entries(m.presets).map(([k, p]) =>
+      `<button class="chip" data-p="${k}" title="${esc(p.desc)}">${esc(p.name)}${allowed && !allowed.includes(k) ? " 🔒" : ""}</button>`).join(""));
+    if (!SR.viewer.limits.filters) inputs.forEach((el) => { el.disabled = true; });
     $('[data-k="sector"]').insertAdjacentHTML("beforeend", m.sectors.map((s) => `<option>${esc(s)}</option>`).join(""));
     $('[data-k="tag"]').insertAdjacentHTML("beforeend", Object.keys(m.tags).map((t) => `<option>${esc(t)}</option>`).join(""));
     inputs.forEach((el) => { if (params.get(el.dataset.k)) el.value = params.get(el.dataset.k); });
@@ -110,10 +119,20 @@
       th.classList.toggle("sorted", th.dataset.k === state.sort);
       th.classList.toggle("asc", th.dataset.k === state.sort && state.dir === "asc");
     });
+    $("#more").innerHTML = d.locked.rows ? SR.upsell(`Free shows the top ${d.results.length} of ${d.total} — Pro shows them all.`) : "";
+    if (d.locked.preset) {
+      $("#count").textContent = SR.meta.presets[state.preset]?.name || "Locked preset";
+      $("#rows").innerHTML = `<tr><td colspan="${COLS.length}" class="l">${SR.lockBox(d.locked.preset)}</td></tr>`;
+      return;
+    }
     $("#rows").innerHTML = d.results.length
       ? d.results.map((r) => `<tr data-t="${esc(r.ticker)}" style="cursor:pointer">${COLS.map((c) => `<td class="${c.l ? "l" : ""} num">${c.f(r)}</td>`).join("")}</tr>`).join("")
       : `<tr><td colspan="${COLS.length}" class="l empty">No stocks match. Try loosening a filter.</td></tr>`;
   }
+  $("#csv").addEventListener("click", () => {
+    if (!SR.viewer.limits.csv) { location = "/pricing"; return; }
+    location = "/api/screen.csv" + location.search;
+  });
   $("#rows").addEventListener("click", (e) => {
     const tr = e.target.closest("tr[data-t]");
     if (tr) location = "/stock/" + encodeURIComponent(tr.dataset.t);

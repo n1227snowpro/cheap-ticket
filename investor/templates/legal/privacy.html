@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Privacy Policy — StockRadar{% endblock %}
+{% block content %}
+<div class="prose">
+<h1>Privacy Policy</h1>
+<p class="muted small">Template — review with a lawyer (e.g. for GDPR / CCPA / Taiwan PDPA) before launch.</p>
+
+<h2>What we collect</h2>
+<ul>
+  <li><b>Account data:</b> e-mail address, a hashed password (never the password itself), and your Google account ID if you sign in with Google.</li>
+  <li><b>Billing data:</b> handled by Stripe. We store your Stripe customer and subscription IDs and plan status — not your card details.</li>
+  <li><b>Usage data:</b> your watchlist, and which stock pages you opened today (to apply free-plan limits).</li>
+  <li><b>Cookies:</b> one essential session cookie to keep you logged in and protect forms. No advertising trackers.</li>
+</ul>
+
+<h2>How we use it</h2>
+<p>To run your account, enforce plan limits, send account e-mails (confirmation, password reset, receipts, alerts you
+asked for) and keep the service secure. We do not sell your personal data.</p>
+
+<h2>Processors</h2>
+<p>Stripe (payments), Google (optional sign-in), our e-mail provider, and our hosting provider.</p>
+
+<h2>Your rights</h2>
+<p>You can update your password or delete your account (and its data) at any time from the account page.</p>
+</div>
+{% endblock %}
