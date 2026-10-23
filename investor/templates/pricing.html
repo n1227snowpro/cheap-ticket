@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Pricing — StockRadar{% endblock %}
+{% block content %}
+<div style="text-align:center">
+  <h1>Find stocks worth researching — in minutes</h1>
+  <p class="sub">Start free. Upgrade when you want the full screener, every stock page and the data pros pay for.</p>
+  <div class="toggle" role="tablist" aria-label="Billing period">
+    <button class="on" data-i="month" role="tab">Monthly</button>
+    <button data-i="year" role="tab">Yearly <span class="small" style="color:var(--good)">2 months free</span></button>
+  </div>
+</div>
+
+{% set features = [
+  ("Today's top value, growth, insider & buzz picks", "Top 3 each", "Full lists", "Full lists"),
+  ("Stock analysis pages (scores, checklist, fair value)", "3 per day", "Unlimited", "Unlimited"),
+  ("Screener", "2 presets, top 10", "All presets & filters", "All presets & filters"),
+  ("News & social feed", "Latest 10", "Full feed", "Full feed"),
+  ("Watchlist", "5 stocks", "50 stocks", "200 stocks"),
+  ("Insider trades & social buzz charts", None, True, True),
+  ("AI morning brief & AI headline summaries", None, None, True),
+  ("Daily e-mail alerts on watchlist changes", None, None, True),
+  ("CSV export", None, None, True),
+] %}
+
+<div class="plans">
+  {% for key in ["free", "pro", "premium"] %}{% set p = plans[key] %}
+  <div class="card plan {{ 'featured' if key == 'pro' }}">
+    {% if key == "pro" %}<span class="ribbon">Most popular</span>{% endif %}
+    <h2>{{ p.name }}</h2>
+    <div class="amount">
+      <span class="m">{% if p.price_month %}<b style="font-size:34px;color:var(--text)">${{ p.price_month }}</b> / month{% else %}<b style="font-size:34px;color:var(--text)">$0</b> forever{% endif %}</span>
+      <span class="y" hidden>{% if p.price_year %}<b style="font-size:34px;color:var(--text)">${{ p.price_year }}</b> / year <span class="small">(${{ '%.2f'|format(p.price_year / 12) }}/mo)</span>{% else %}<b style="font-size:34px;color:var(--text)">$0</b> forever{% endif %}</span>
+    </div>
+    <ul>
+      {% for f in features %}{% set v = f[{"free": 1, "pro": 2, "premium": 3}[key]] %}
+      <li class="{{ 'no' if not v }}"><span>{{ '✓' if v else '–' }}</span><span>{{ f[0] }}{% if v and v is string %} — <b>{{ v }}</b>{% endif %}</span></li>
+      {% endfor %}
+    </ul>
+    {% if key == "free" %}
+      {% if user %}<span class="btn" aria-disabled="true">{{ "Current plan" if current == "free" else "Included" }}</span>
+      {% else %}<a class="btn" href="/signup">Create free account</a>{% endif %}
+    {% elif current == key %}
+      <form method="post" action="/billing/portal"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn">Manage subscription</button></form>
+    {% elif user %}
+      <form method="post" action="/billing/checkout">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="plan" value="{{ key }}">
+        <input type="hidden" name="interval" value="month" class="interval">
+        <button class="btn primary" {{ 'disabled' if not billing_enabled }}>
+          {% if current != "free" %}Switch to {{ p.name }}{% elif key == "pro" and trial_days %}Start {{ trial_days }}-day free trial{% else %}Get {{ p.name }}{% endif %}
+        </button>
+      </form>
+    {% else %}
+      <a class="btn primary" href="/signup?next=/pricing">{% if key == "pro" and trial_days %}Start {{ trial_days }}-day free trial{% else %}Get {{ p.name }}{% endif %}</a>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% if not billing_enabled %}<p class="small muted" style="text-align:center">Checkout is not configured on this server yet.</p>{% endif %}
+
+<div class="section"><h2>Questions</h2></div>
+<div class="faq card">
+  <details><summary>Can I cancel anytime?</summary><p>Yes. Cancel from your account page in two clicks; you keep access until the end of the period you paid for.</p></details>
+  <details><summary>How does the free trial work?</summary><p>Pro includes a {{ trial_days }}-day free trial. You won't be charged if you cancel before it ends.</p></details>
+  <details><summary>Where does the data come from?</summary><p>Prices, fundamentals and news from a licensed market-data provider, insider trades from SEC filings, and social buzz from Reddit and StockTwits. See <a href="/learn">How it works</a>.</p></details>
+  <details><summary>Is this investment advice?</summary><p>No. StockRadar is an educational research tool. Scores summarize public data and can be wrong; always do your own research or talk to a licensed adviser.</p></details>
+  <details><summary>How do payments work?</summary><p>Payments are processed securely by Stripe. We never see or store your card number.</p></details>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.querySelector(".toggle").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  document.querySelectorAll(".toggle button").forEach((x) => x.classList.toggle("on", x === b));
+  const yearly = b.dataset.i === "year";
+  document.querySelectorAll(".amount .m").forEach((el) => el.hidden = yearly);
+  document.querySelectorAll(".amount .y").forEach((el) => el.hidden = !yearly);
+  document.querySelectorAll("input.interval").forEach((el) => el.value = b.dataset.i);
+});
+</script>
+{% endblock %}

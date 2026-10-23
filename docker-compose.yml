@@ -25,10 +25,57 @@ services:
       - traefik.http.routers.cheapticket.middlewares=cheapticket-headers@docker
       - traefik.docker.network=n8n_default
 
+  stockradar:
+    build: ./investor
+    image: stockradar:latest
+    container_name: stockradar
+    restart: unless-stopped
+    networks:
+      - n8n_default
+    volumes:
+      - stockradar_data:/app/data
+    environment:
+      - INVESTOR_DATA=/app/data
+      # Set these in a .env file next to docker-compose.yml (never commit it).
+      # Without EODHD_KEY the app runs on fictional demo data.
+      - EODHD_KEY=${EODHD_KEY:-}
+      - ANTHROPIC_KEY=${ANTHROPIC_KEY:-}
+      - REDDIT_CLIENT_ID=${REDDIT_CLIENT_ID:-}
+      - REDDIT_CLIENT_SECRET=${REDDIT_CLIENT_SECRET:-}
+      - SEC_USER_AGENT=${SEC_USER_AGENT:-StockRadar admin@example.com}
+      - BASE_URL=${BASE_URL:-https://invest.srv1213330.hstgr.cloud}
+      - SECRET_KEY=${SECRET_KEY:-}
+      - ADMIN_EMAILS=${ADMIN_EMAILS:-}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
+      - STRIPE_PRICE_PRO_MONTH=${STRIPE_PRICE_PRO_MONTH:-}
+      - STRIPE_PRICE_PRO_YEAR=${STRIPE_PRICE_PRO_YEAR:-}
+      - STRIPE_PRICE_PREMIUM_MONTH=${STRIPE_PRICE_PREMIUM_MONTH:-}
+      - STRIPE_PRICE_PREMIUM_YEAR=${STRIPE_PRICE_PREMIUM_YEAR:-}
+      - TRIAL_DAYS=${TRIAL_DAYS:-7}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM=${SMTP_FROM:-StockRadar <no-reply@example.com>}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.stockradar.rule=Host(`invest.srv1213330.hstgr.cloud`)
+      - traefik.http.routers.stockradar.tls=true
+      - traefik.http.routers.stockradar.entrypoints=web,websecure
+      - traefik.http.routers.stockradar.tls.certresolver=mytlschallenge
+      - traefik.http.services.stockradar.loadbalancer.server.port=9003
+      - traefik.http.routers.stockradar.middlewares=cheapticket-headers@docker
+      - traefik.docker.network=n8n_default
+
 networks:
   n8n_default:
     external: true
 
 volumes:
   cheapticket_data:
+    driver: local
+  stockradar_data:
     driver: local

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Admin — StockRadar{% endblock %}
+{% block content %}
+<h1>Admin</h1>
+<div class="grid g4">
+  <div class="card"><div class="small muted">Users</div><div class="price num">{{ users|length }}</div></div>
+  <div class="card"><div class="small muted">Pro</div><div class="price num">{{ counts.pro }}</div></div>
+  <div class="card"><div class="small muted">Premium</div><div class="price num">{{ counts.premium }}</div></div>
+  <div class="card"><div class="small muted">Est. MRR (active, excl. trials)</div><div class="price num">${{ '%.0f'|format(mrr) }}</div></div>
+</div>
+<div class="section"><h2>Data jobs</h2>{% if status.demo %}<p>Demo mode — jobs are off.</p>{% endif %}</div>
+<div class="card table-wrap" style="padding:0">
+  <table><thead><tr><th class="l">Job</th><th class="l">Last finished</th><th>OK</th><th>Errors</th><th class="l">Next run</th><th></th></tr></thead><tbody>
+  {% for name, j in status.jobs.items() %}
+    <tr><td class="l">{{ name }}{% if j.running %} <span class="tag">running</span>{% endif %}</td>
+      <td class="l">{{ (j.last or {}).get('finished_at') or '—' }}</td><td>{{ (j.last or {}).get('ok', '') }}</td><td>{{ (j.last or {}).get('err', '') }}</td>
+      <td class="l">{{ j.next_run or '—' }}</td>
+      <td>{% if not status.demo %}<button class="btn sm" data-job="{{ name }}">Run now</button>{% endif %}</td></tr>
+  {% endfor %}
+  </tbody></table>
+</div>
+<div class="section"><h2>Users</h2></div>
+<div class="card table-wrap" style="padding:0">
+  <table><thead><tr><th class="l">E-mail</th><th class="l">Plan</th><th class="l">Status</th><th class="l">Signed up</th><th class="l">Last login</th></tr></thead><tbody>
+  {% for u in users %}
+    <tr><td class="l">{{ u.email }}{% if not u.email_verified %} <span class="muted small">(unconfirmed)</span>{% endif %}</td>
+      <td class="l"><span class="plan-badge plan-{{ effective_plan(u) }}">{{ effective_plan(u) }}</span></td>
+      <td class="l">{{ u.plan_status or '' }}{% if u.cancel_at_period_end %} · cancels{% endif %}</td>
+      <td class="l">{{ (u.created_at or '')[:10] }}</td><td class="l">{{ (u.last_login_at or '')[:10] }}</td></tr>
+  {% endfor %}
+  </tbody></table>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.querySelectorAll("[data-job]").forEach((b) => b.addEventListener("click", async () => {
+  const r = await fetch("/api/refresh?job=" + b.dataset.job, { method: "POST", headers: { "X-CSRF-Token": SR.csrf() } });
+  b.textContent = r.ok ? "Started" : "Failed";
+}));
+</script>
+{% endblock %}

@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Choose a new password — StockRadar{% endblock %}
+{% block content %}
+<div class="auth card">
+  <h1>Choose a new password</h1>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label>New password <span class="muted">(8+ characters)</span><input type="password" name="password" minlength="8" required autocomplete="new-password" autofocus></label>
+    <button class="btn primary">Save password</button>
+  </form>
+</div>
+{% endblock %}
