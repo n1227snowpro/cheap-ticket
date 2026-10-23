@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}StockRadar — Watchlist{% endblock %}
+{% block content %}
+<h1>Watchlist</h1>
+<p class="sub">Tap ★ on any stock page to add it here. Saved in this browser only.</p>
+<div id="list" class="grid g3"></div>
+{% endblock %}
+{% block scripts %}
+<script>
+(async () => {
+  const { $, api, watchlist, pickCard } = SR;
+  const t = watchlist.all();
+  if (!t.length) { $("#list").innerHTML = `<p class="empty">Your watchlist is empty. Start from <a href="/">Today's ideas</a> or the <a href="/screener">screener</a>.</p>`; return; }
+  const d = await api("/api/quotes?tickers=" + encodeURIComponent(t.join(",")));
+  $("#list").innerHTML = d.results.map((r) => pickCard(r)).join("") || `<p class="empty">None of your saved tickers are tracked right now.</p>`;
+})();
+</script>
+{% endblock %}

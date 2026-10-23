@@ -6,6 +6,8 @@ Scrapes trip.com daily to find the cheapest one-way flights from Taipei (TPE) to
 
 ---
 
+> **Also in this repo:** [`investor/`](investor/README.md) — *StockRadar*, a US stock dashboard that scores stocks on value, growth, quality and sentiment from prices, filings, news and social media.
+
 ## Features
 
 - 23 destinations: Japan, Korea, HK, Macau, Thailand, Vietnam, SE Asia, Europe, Americas, Pacific

@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}StockRadar — How it works{% endblock %}
+{% block content %}
+<h1>How StockRadar works</h1>
+<p class="sub">Every stock gets four scores from 0 to 100. A score of 80 means the stock beats 80% of its sector peers on that dimension.</p>
+
+<div class="grid g2">
+  <div class="card">
+    <h3>💎 Value — is it cheap?</h3>
+    <ul class="why" style="font-size:14px">
+      <li><b>P/E, P/FCF, EV/EBITDA, P/B</b> — price paid per dollar of earnings, cash flow and assets. Lower is cheaper.</li>
+      <li><b>Graham Number</b> — Benjamin Graham's maximum price: √(22.5 × EPS × book value per share).</li>
+      <li><b>DCF margin of safety</b> — how far the price sits below a simple discounted-cash-flow value.</li>
+      <li><b>FCF &amp; dividend yield</b> — cash the business throws off relative to its price.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>🚀 Growth — is it getting bigger?</h3>
+    <ul class="why" style="font-size:14px">
+      <li><b>3-year revenue &amp; EPS growth</b> (compound annual rates).</li>
+      <li><b>Forward EPS growth &amp; estimate revisions</b> — what analysts expect, and whether they're raising numbers.</li>
+      <li><b>PEG</b> — P/E divided by growth; under 1 is often called "growth at a reasonable price".</li>
+      <li><b>Gross-margin trend &amp; Rule of 40</b> — growth % + free-cash-flow margin %, used for software.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>🏰 Quality — is it a good business?</h3>
+    <ul class="why" style="font-size:14px">
+      <li><b>ROIC &amp; ROE</b> — profit earned on the money invested in the business.</li>
+      <li><b>Piotroski F-Score</b> (0–9) — nine pass/fail tests of profitability, leverage and efficiency.</li>
+      <li><b>Altman Z-Score</b> — bankruptcy-risk model; above 3 is safe, below 1.8 is distress.</li>
+      <li><b>Margin stability, cash conversion, dilution, debt/equity.</b></li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>📈 Momentum &amp; sentiment — is the crowd noticing?</h3>
+    <ul class="why" style="font-size:14px">
+      <li><b>Return vs the S&amp;P 500</b>, position in the 52-week range.</li>
+      <li><b>News tone</b> — headlines rated positive/negative (by Claude when configured).</li>
+      <li><b>Social buzz</b> — Reddit &amp; StockTwits mentions vs their normal level (σ = standard deviations).</li>
+      <li><b>Insider buying</b> — open-market purchases reported on SEC Form 4.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="card" style="margin-top:12px">
+  <h3>Style tags</h3>
+  <div id="tags" class="small"></div>
+</div>
+
+<div class="card" style="margin-top:12px">
+  <h3>Data sources</h3>
+  <p class="small" style="margin:0">Prices, fundamentals, analyst estimates and news: <b>EODHD</b>. Insider trades: <b>SEC EDGAR</b>.
+  Social: <b>Reddit</b> and <b>StockTwits</b>. Headline summaries and the morning brief: <b>Claude</b>.
+  Fundamentals refresh weekly, prices daily, news hourly and social every 20 minutes.</p>
+  <div id="jobs" class="small muted" style="margin-top:8px"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+addEventListener("sr-meta", () => {
+  const { $, esc, ago } = SR;
+  $("#tags").innerHTML = Object.entries(SR.meta.tags).map(([k, v]) => `<p style="margin:4px 0"><span class="tag ${k === "Hype Warning" ? "warn" : ""}">${esc(k)}</span> ${esc(v)}</p>`).join("");
+  const jobs = SR.meta.status.jobs;
+  $("#jobs").innerHTML = SR.meta.status.demo ? "Running on demo data — no live jobs." :
+    Object.entries(jobs).map(([k, j]) => `${esc(k)}: ${j.running ? "running…" : j.last?.finished_at ? "updated " + ago(j.last.finished_at) : "pending"}`).join(" · ");
+});
+</script>
+{% endblock %}

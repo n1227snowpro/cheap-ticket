@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}StockRadar — Screener{% endblock %}
+{% block content %}
+<h1>Screener</h1>
+<p class="sub">Pick a strategy, then narrow it down. Click a column to sort, a row to see the full checklist.</p>
+
+<div class="presets" id="presets"><button class="chip on" data-p="">All stocks</button></div>
+<p id="presetDesc" class="small muted" style="margin:-4px 0 12px"></p>
+
+<div class="card">
+  <div class="filters">
+    <label>Min value score <span id="v_min_value">0</span><input type="range" min="0" max="90" step="5" value="0" data-k="min_value"></label>
+    <label>Min growth score <span id="v_min_growth">0</span><input type="range" min="0" max="90" step="5" value="0" data-k="min_growth"></label>
+    <label>Min quality score <span id="v_min_quality">0</span><input type="range" min="0" max="90" step="5" value="0" data-k="min_quality"></label>
+    <label>Min momentum score <span id="v_min_momentum">0</span><input type="range" min="0" max="90" step="5" value="0" data-k="min_momentum"></label>
+    <label>Sector<select data-k="sector"><option value="">All sectors</option></select></label>
+    <label>Style tag<select data-k="tag"><option value="">Any</option></select></label>
+    <label>Max P/E<input type="number" min="0" step="1" placeholder="any" data-k="max_pe"></label>
+    <label>Min dividend yield %<input type="number" min="0" step="0.5" placeholder="any" data-k="min_yield"></label>
+    <label>Search<input type="text" placeholder="name or ticker" data-k="q"></label>
+  </div>
+</div>
+
+<div class="section"><h2 id="count">Loading…</h2><button class="btn" id="reset">Reset filters</button></div>
+<div class="card table-wrap" style="padding:0">
+  <table>
+    <thead><tr id="head"></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(() => {
+  const { $, esc, api, pct, x, n, money, cap, pill, tags } = SR;
+  const COLS = [
+    { k: "ticker", t: "Stock", l: true, f: (r) => `<b>${esc(r.ticker)}</b><div class="small muted" style="max-width:200px;overflow:hidden;text-overflow:ellipsis">${esc(r.name)}</div>` },
+    { k: "composite", t: "Overall", f: (r) => pill(r.composite) },
+    { k: "value", t: "Value", f: (r) => pill(r.value) },
+    { k: "growth", t: "Growth", f: (r) => pill(r.growth) },
+    { k: "quality", t: "Quality", f: (r) => pill(r.quality) },
+    { k: "momentum", t: "Mom.", f: (r) => pill(r.momentum) },
+    { k: "price", t: "Price", f: (r) => money(r.price) },
+    { k: "market_cap", t: "Mkt cap", f: (r) => cap(r.market_cap) },
+    { k: "pe", t: "P/E", m: 1, f: (r) => r.m.pe == null ? "n/m" : n(r.m.pe, 1) },
+    { k: "peg", t: "PEG", m: 1, f: (r) => n(r.m.peg) },
+    { k: "rev_cagr_3y", t: "Rev growth", m: 1, f: (r) => pct(r.m.rev_cagr_3y) },
+    { k: "roic", t: "ROIC", m: 1, f: (r) => pct(r.m.roic) },
+    { k: "dividend_yield", t: "Yield", m: 1, f: (r) => pct(r.m.dividend_yield) },
+    { k: "piotroski", t: "F-Score", m: 1, f: (r) => r.m.piotroski ?? "—" },
+    { k: "rs_12m", t: "vs S&P 1y", m: 1, f: (r) => pct(r.m.rs_12m, 0, true) },
+    { k: "tags", t: "Tags", l: true, nosort: true, f: (r) => tags(r.tags) },
+  ];
+  const params = new URLSearchParams(location.search);
+  const state = { preset: params.get("preset") || "", sort: params.get("sort") || "composite", dir: "desc" };
+
+  $("#head").innerHTML = COLS.map((c) => `<th class="${c.l ? "l" : ""}" data-k="${c.k}" ${c.nosort ? 'data-nosort="1"' : ""}>${esc(c.t)}</th>`).join("");
+  $("#head").addEventListener("click", (e) => {
+    const th = e.target.closest("th");
+    if (!th || th.dataset.nosort) return;
+    if (state.sort === th.dataset.k) state.dir = state.dir === "desc" ? "asc" : "desc";
+    else { state.sort = th.dataset.k; state.dir = ["pe", "peg", "ticker"].includes(th.dataset.k) ? "asc" : "desc"; }
+    load();
+  });
+
+  const inputs = [...document.querySelectorAll("[data-k]")].filter((el) => el.tagName !== "TH");
+  inputs.forEach((el) => {
+    if (params.get(el.dataset.k)) el.value = params.get(el.dataset.k);
+    el.addEventListener("input", () => {
+      const lab = $("#v_" + el.dataset.k);
+      if (lab) lab.textContent = el.value;
+      clearTimeout(state.t);
+      state.t = setTimeout(load, 200);
+    });
+  });
+  $("#reset").addEventListener("click", () => {
+    inputs.forEach((el) => { el.value = el.type === "range" ? 0 : ""; const lab = $("#v_" + el.dataset.k); if (lab) lab.textContent = "0"; });
+    state.preset = ""; markPreset(); load();
+  });
+
+  const markPreset = () => {
+    document.querySelectorAll("#presets .chip").forEach((c) => c.classList.toggle("on", c.dataset.p === state.preset));
+    $("#presetDesc").textContent = state.preset ? SR.meta?.presets[state.preset]?.desc || "" : "";
+  };
+
+  addEventListener("sr-meta", () => {
+    const m = SR.meta;
+    $("#presets").insertAdjacentHTML("beforeend", Object.entries(m.presets).map(([k, p]) => `<button class="chip" data-p="${k}" title="${esc(p.desc)}">${esc(p.name)}</button>`).join(""));
+    $('[data-k="sector"]').insertAdjacentHTML("beforeend", m.sectors.map((s) => `<option>${esc(s)}</option>`).join(""));
+    $('[data-k="tag"]').insertAdjacentHTML("beforeend", Object.keys(m.tags).map((t) => `<option>${esc(t)}</option>`).join(""));
+    inputs.forEach((el) => { if (params.get(el.dataset.k)) el.value = params.get(el.dataset.k); });
+    markPreset();
+    load();
+  });
+  $("#presets").addEventListener("click", (e) => {
+    const c = e.target.closest(".chip");
+    if (!c) return;
+    state.preset = c.dataset.p;
+    markPreset(); load();
+  });
+
+  async function load() {
+    const q = new URLSearchParams({ sort: state.sort, dir: state.dir });
+    if (state.preset) q.set("preset", state.preset);
+    inputs.forEach((el) => { if (el.value && el.value !== "0") q.set(el.dataset.k, el.value); });
+    history.replaceState(null, "", "?" + q.toString());
+    const d = await api("/api/screen?" + q.toString());
+    $("#count").textContent = `${d.total} stock${d.total === 1 ? "" : "s"} match`;
+    document.querySelectorAll("#head th").forEach((th) => {
+      th.classList.toggle("sorted", th.dataset.k === state.sort);
+      th.classList.toggle("asc", th.dataset.k === state.sort && state.dir === "asc");
+    });
+    $("#rows").innerHTML = d.results.length
+      ? d.results.map((r) => `<tr data-t="${esc(r.ticker)}" style="cursor:pointer">${COLS.map((c) => `<td class="${c.l ? "l" : ""} num">${c.f(r)}</td>`).join("")}</tr>`).join("")
+      : `<tr><td colspan="${COLS.length}" class="l empty">No stocks match. Try loosening a filter.</td></tr>`;
+  }
+  $("#rows").addEventListener("click", (e) => {
+    const tr = e.target.closest("tr[data-t]");
+    if (tr) location = "/stock/" + encodeURIComponent(tr.dataset.t);
+  });
+})();
+</script>
+{% endblock %}

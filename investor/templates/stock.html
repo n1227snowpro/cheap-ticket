@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% block title %}{{ ticker }} — StockRadar{% endblock %}
+{% block content %}
+<div id="root"><p class="empty">Loading {{ ticker }}…</p></div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='vendor/chart.umd.min.js') }}"></script>
+<script>
+(async () => {
+  const { $, esc, api, pct, x, n, money, cap, ago, chg, pill, band, watchlist } = SR;
+  const T = {{ ticker|tojson }};
+  let d;
+  try { d = await api("/api/stock/" + encodeURIComponent(T)); }
+  catch (e) { $("#root").innerHTML = `<h1>${esc(T)}</h1><p class="empty">We don't track this ticker (yet). Try the <a href="/screener">screener</a>.</p>`; return; }
+  const m = d.metrics;
+  const px = d.prices.map((p) => p[1]);
+  const day = px.length > 1 ? px.at(-1) / px.at(-2) - 1 : null;
+  const groups = { value: "Value", growth: "Growth", quality: "Quality", momentum: "Momentum & sentiment" };
+
+  const fairRows = [
+    ["Graham Number", m.graham_number, "Max price a defensive investor should pay (√ 22.5 × EPS × book value)."],
+    ["DCF value", m.dcf_value, "Two-stage discounted free cash flow, 10% discount rate."],
+    ["Analyst target", m.target_price, "Average Wall Street 12-month target."],
+  ].filter((r) => r[1]);
+
+  const mood = (s) => s == null ? `<span class="mood neu">unrated</span>` : s > 0.1 ? `<span class="mood pos">positive</span>` : s < -0.1 ? `<span class="mood neg">negative</span>` : `<span class="mood neu">neutral</span>`;
+
+  $("#root").innerHTML = `
+    <div class="hero">
+      <div>
+        <div class="small muted">${esc(d.sector)} · ${esc(d.profile.industry || "")}</div>
+        <h1>${esc(d.name)} <span class="muted">(${esc(d.ticker)})</span>
+          <button class="star ${watchlist.has(T) ? "on" : ""}" id="star" title="Add to watchlist" aria-label="Toggle watchlist">★</button></h1>
+        <div><span class="price num">${money(d.price)}</span> ${chg(day)} <span class="muted small">today · Market cap ${cap(d.market_cap)}</span></div>
+        <div style="margin-top:8px" class="tags">${d.tags.map((t) => `<span class="tag ${t === "Hype Warning" ? "warn" : ""}" title="${esc(d.tag_info[t] || "")}">${esc(t)}</span>`).join("")}</div>
+      </div>
+      <div class="gauges">
+        <div class="gauge">${pill(d.composite, "Overall")}</div>
+        <div class="gauge">${pill(d.value, "Value")}</div>
+        <div class="gauge">${pill(d.growth, "Growth")}</div>
+        <div class="gauge">${pill(d.quality, "Quality")}</div>
+        <div class="gauge">${pill(d.momentum, "Momentum")}</div>
+      </div>
+    </div>
+
+    <div class="grid g2" style="margin-top:16px">
+      <div class="card">
+        <h3>Why it's interesting</h3>
+        <ul class="why" style="font-size:14px">${d.reasons.good.map((w) => `<li>${esc(w)}</li>`).join("") || "<li>No standout strengths.</li>"}
+        ${d.reasons.bad.map((w) => `<li class="bad">${esc(w)}</li>`).join("")}</ul>
+        ${Object.keys(d.tag_info).length ? `<div class="small muted" style="margin-top:8px">${Object.entries(d.tag_info).map(([k, v]) => `<b>${esc(k)}</b>: ${esc(v)}`).join("<br>")}</div>` : ""}
+        ${d.profile.description ? `<p class="small muted" style="margin-bottom:0">${esc(d.profile.description)}</p>` : ""}
+      </div>
+      <div class="card">
+        <h3>Fair-value estimates</h3>
+        ${fairRows.length ? `<ul class="checks">${fairRows.map(([k, v, why]) => {
+          const up = v / d.price - 1;
+          return `<li><span class="${up >= 0 ? "ok" : "no"}">${up >= 0 ? "▲" : "▼"}</span><span>${esc(k)}</span><b class="num">${money(v)} <span class="${up >= 0 ? "chg-up" : "chg-dn"}">(${pct(up, 0, true)})</span></b><span class="why2">${esc(why)}</span></li>`;
+        }).join("")}</ul>` : `<p class="empty">Not enough positive earnings or cash flow to estimate fair value.</p>`}
+        <p class="small muted" style="margin-bottom:0">Models are rough guides, very sensitive to growth assumptions.</p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <div class="section" style="margin:0 0 8px"><h3 style="margin:0">Price vs S&amp;P 500 (indexed to 100)</h3>
+        <div class="small muted">1-year: ${pct(m.ret_12m, 1, true)} · vs S&amp;P ${pct(m.rs_12m, 1, true)}</div></div>
+      <div class="chart-box"><canvas id="pxChart" aria-label="Price chart"></canvas></div>
+    </div>
+
+    <div class="grid g2" style="margin-top:12px">
+      <div class="card">
+        <h3>Indicator checklist</h3>
+        <div class="tabs" id="ctabs">${Object.entries(groups).map(([k, v], i) => {
+          const items = d.checks.filter((c) => c.group === k);
+          const passed = items.filter((c) => c.pass).length;
+          return `<button data-g="${k}" class="${i ? "" : "on"}">${v} <span class="muted">${passed}/${items.length}</span></button>`;
+        }).join("")}</div>
+        <ul class="checks" id="checks"></ul>
+      </div>
+      <div class="card">
+        <h3>Key numbers</h3>
+        <div class="kv">
+          <div>P/E<b>${m.pe == null ? "n/m" : n(m.pe, 1)}</b></div>
+          <div>PEG<b>${n(m.peg)}</b></div>
+          <div>P/Book<b>${n(m.pb, 1)}</b></div>
+          <div>EV/EBITDA<b>${m.ev_ebitda == null ? "n/m" : n(m.ev_ebitda, 1)}</b></div>
+          <div>FCF yield<b>${pct(m.fcf_yield)}</b></div>
+          <div>Dividend yield<b>${pct(m.dividend_yield)}</b></div>
+          <div>Revenue growth (3y)<b>${pct(m.rev_cagr_3y)}</b></div>
+          <div>EPS growth (3y)<b>${pct(m.eps_cagr_3y)}</b></div>
+          <div>Gross margin<b>${pct(m.gross_margin)}</b></div>
+          <div>Operating margin<b>${pct(m.op_margin)}</b></div>
+          <div>ROIC<b>${pct(m.roic)}</b></div>
+          <div>ROE<b>${pct(m.roe)}</b></div>
+          <div>Debt / equity<b>${m.debt_equity == null ? "n/m" : x(m.debt_equity)}</b></div>
+          <div>Piotroski F-Score<b>${m.piotroski ?? "—"} / 9</b></div>
+          <div>Altman Z<b>${n(m.altman_z, 1)}</b></div>
+          <div>52-week range<b class="small">${money(m.low_52w)} – ${money(m.high_52w)}</b></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid g2" style="margin-top:12px">
+      <div class="card">
+        <h3>Revenue &amp; net income by year</h3>
+        <div class="chart-box sm"><canvas id="finChart" aria-label="Annual revenue and net income"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Social mentions per day (30 days)</h3>
+        <div class="small muted">${m.mentions_7d ?? 0} mentions this week${m.bull_ratio != null ? ` · ${pct(m.bull_ratio, 0)} bullish` : ""}${m.buzz_z != null ? ` · buzz ${m.buzz_z >= 0 ? "+" : ""}${n(m.buzz_z, 1)}σ vs normal` : ""}</div>
+        <div class="chart-box sm"><canvas id="buzzChart" aria-label="Social mentions per day"></canvas></div>
+      </div>
+    </div>
+
+    <div class="grid g2" style="margin-top:12px">
+      <div class="card">
+        <h3>Latest news</h3>
+        <ul class="feed">${d.news.map((it) => `<li><div class="meta">${ago(it.published_at)}<br>${mood(it.sentiment)}</div>
+          <div><a class="title" href="${SR.url(it.url)}" target="_blank" rel="noopener">${esc(it.title)}</a>
+          <div class="meta">${esc(it.source || "")}${it.impact ? ` · ${esc(it.impact)} impact` : ""}</div>
+          ${it.summary ? `<div class="summ">${esc(it.summary)}</div>` : ""}</div></li>`).join("") || `<li class="empty">No recent news.</li>`}</ul>
+      </div>
+      <div class="card">
+        <h3>Insider trades (180 days)</h3>
+        ${d.insider.length ? `<div class="table-wrap"><table><thead><tr><th class="l">Date</th><th class="l">Who</th><th>Type</th><th>Shares</th><th>Value</th></tr></thead><tbody>
+          ${d.insider.map((t) => `<tr><td class="l">${esc(t.filed_at)}</td><td class="l">${esc(t.owner)}<div class="small muted">${esc(t.title || "")}</div></td>
+          <td class="${t.code === "P" ? "chg-up" : "chg-dn"}">${t.code === "P" ? "Buy" : "Sell"}</td><td class="num">${Math.round(t.shares).toLocaleString()}</td><td class="num">${cap(t.value)}</td></tr>`).join("")}
+          </tbody></table></div>` : `<p class="empty">No open-market insider trades reported.</p>`}
+        <h3 style="margin-top:16px">Social posts</h3>
+        <ul class="feed">${d.posts.map((p) => `<li><div class="meta">${ago(p.created_at)}<br>▲ ${p.score ?? 0}</div><div><a class="title" href="${SR.url(p.url)}" target="_blank" rel="noopener">${esc(p.title)}</a><div class="meta">${esc(p.source)}</div></div></li>`).join("") || `<li class="empty">No recent posts.</li>`}</ul>
+      </div>
+    </div>
+
+    <div class="section"><h2>Peers in ${esc(d.sector)}</h2><a href="/screener?sector=${encodeURIComponent(d.sector)}">See all →</a></div>
+    <div class="grid g3">${d.peers.slice(0, 6).map((r) => SR.pickCard(r)).join("") || `<p class="empty">No peers tracked.</p>`}</div>
+  `;
+
+  $("#star").addEventListener("click", (e) => e.currentTarget.classList.toggle("on", watchlist.toggle(T)));
+
+  const showChecks = (g) => {
+    const items = d.checks.filter((c) => c.group === g);
+    $("#checks").innerHTML = items.map((c) => `<li><span class="${c.pass ? "ok" : "no"}" aria-label="${c.pass ? "pass" : "fail"}">${c.pass ? "✓" : "✗"}</span><span>${esc(c.label)}</span><b class="num">${esc(c.display)}</b><span class="why2">${esc(c.why)}</span></li>`).join("") || `<li class="empty">Not enough data.</li>`;
+  };
+  $("#ctabs").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    document.querySelectorAll("#ctabs button").forEach((x) => x.classList.toggle("on", x === b));
+    showChecks(b.dataset.g);
+  });
+  showChecks("value");
+
+  // ── Charts ──
+  const charts = [];
+  const draw = () => {
+    charts.splice(0).forEach((c) => c.destroy());
+    const ink = SR.cssVar("--text-2"), grid = SR.cssVar("--border"), s1 = SR.cssVar("--series-1"), s2 = SR.cssVar("--series-2");
+    Chart.defaults.color = ink;
+    Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+    const axes = { x: { grid: { display: false }, ticks: { maxTicksLimit: 6, color: ink } }, y: { grid: { color: grid }, border: { display: false }, ticks: { color: ink } } };
+
+    const bmap = new Map(d.benchmark);
+    const dates = d.prices.map((p) => p[0]);
+    const base = d.prices[0]?.[1], bbase = bmap.get(dates.find((dt) => bmap.has(dt)));
+    charts.push(new Chart($("#pxChart"), {
+      type: "line",
+      data: { labels: dates, datasets: [
+        { label: d.ticker, data: d.prices.map((p) => p[1] / base * 100), borderColor: s1, borderWidth: 2, pointRadius: 0, tension: 0.1 },
+        { label: "S&P 500 (SPY)", data: dates.map((dt) => bmap.has(dt) && bbase ? bmap.get(dt) / bbase * 100 : null), borderColor: s2, borderWidth: 2, pointRadius: 0, tension: 0.1, spanGaps: true },
+      ] },
+      options: { maintainAspectRatio: false, interaction: { mode: "index", intersect: false },
+        plugins: { legend: { position: "top", align: "end", labels: { boxWidth: 12, boxHeight: 2 } },
+          tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${c.parsed.y?.toFixed(1)}${c.datasetIndex === 0 ? `  (${money(d.prices[c.dataIndex][1])})` : ""}` } } },
+        scales: axes },
+    }));
+
+    charts.push(new Chart($("#finChart"), {
+      type: "bar",
+      data: { labels: d.annual.map((y) => y.year), datasets: [
+        { label: "Revenue", data: d.annual.map((y) => y.revenue), backgroundColor: s1, borderRadius: 4, borderSkipped: "bottom" },
+        { label: "Net income", data: d.annual.map((y) => y.net_income), backgroundColor: s2, borderRadius: 4, borderSkipped: "bottom" },
+      ] },
+      options: { maintainAspectRatio: false, plugins: { legend: { position: "top", align: "end", labels: { boxWidth: 12 } },
+          tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${cap(c.parsed.y)}` } } },
+        datasets: { bar: { categoryPercentage: 0.7, barPercentage: 0.9 } },
+        scales: { ...axes, y: { ...axes.y, ticks: { color: ink, callback: (v) => cap(v) } } } },
+    }));
+
+    charts.push(new Chart($("#buzzChart"), {
+      type: "bar",
+      data: { labels: d.social.map((s) => s.day.slice(5)), datasets: [{ label: "Mentions", data: d.social.map((s) => s.mentions), backgroundColor: s1, borderRadius: 3 }] },
+      options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: axes },
+    }));
+  };
+  draw();
+  addEventListener("sr-theme", draw);
+})();
+</script>
+{% endblock %}

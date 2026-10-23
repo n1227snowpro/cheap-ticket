@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}StockRadar — Today{% endblock %}
+{% block content %}
+<h1>Today's ideas</h1>
+<p class="sub">Stocks ranked by value, growth, quality and momentum — refreshed automatically from prices, filings, news and social media.</p>
+
+<div class="strip">
+  <div class="card">
+    <h3>S&amp;P 500 (SPY)</h3>
+    <div id="bench" class="empty">Loading…</div>
+    <div class="chart-box sm"><canvas id="benchChart" aria-label="SPY last 60 days"></canvas></div>
+  </div>
+  <div class="card">
+    <h3>Sectors — 1-month average return</h3>
+    <div id="heat" class="heat"></div>
+  </div>
+</div>
+
+<div class="card" style="margin-top:12px">
+  <h3>🗞️ Morning brief</h3>
+  <p id="digest" class="digest">Loading…</p>
+</div>
+
+<div class="section"><h2>💎 Top value</h2><p>Cheap vs. peers, with at least decent quality (avoids obvious value traps).</p></div>
+<div id="value" class="grid g3"></div>
+
+<div class="section"><h2>🚀 Top growth</h2><p>Fastest-growing revenue and earnings, rising estimates.</p></div>
+<div id="growth" class="grid g3"></div>
+
+<div class="section"><h2>🧑‍💼 Insiders buying</h2><p>Executives and directors buying shares with their own money (SEC Form 4, last 90 days).</p></div>
+<div id="insiders" class="grid g3"></div>
+
+<div class="section"><h2>🔥 Buzzing now</h2><p>Unusual Reddit &amp; StockTwits chatter. Buzz is not a reason to buy — check the scores.</p></div>
+<div id="buzzing" class="grid g3"></div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='vendor/chart.umd.min.js') }}"></script>
+<script>
+(async () => {
+  const { $, esc, api, pct, money, chg, pickCard } = SR;
+  const d = await api("/api/today");
+  const fill = (id, rows, extra) => {
+    $(id).innerHTML = rows.length ? rows.map((r) => pickCard(r, extra ? extra(r) : "")).join("")
+      : `<div class="empty">Nothing here yet — data is still loading.</div>`;
+  };
+  fill("#value", d.top_value);
+  fill("#growth", d.top_growth);
+  fill("#insiders", d.insiders, (r) => `<div class="small"><b>${r.m.insider_buyers}</b> insider buyer${r.m.insider_buyers === 1 ? "" : "s"} in 90 days</div>`);
+  fill("#buzzing", d.buzzing, (r) => `<div class="small">${r.m.mentions_7d ?? 0} mentions this week · buzz ${r.m.buzz_z == null ? "—" : (r.m.buzz_z >= 0 ? "+" : "") + r.m.buzz_z.toFixed(1) + "σ"}</div>`);
+
+  $("#digest").textContent = d.digest?.text || "The daily brief appears here once the first scan finishes (needs a Claude API key).";
+
+  $("#heat").innerHTML = d.sectors.map((s) => `<div><b>${esc(s.sector)}</b>${chg(s.ret_1m)} <span class="muted">· ${s.n} stocks</span></div>`).join("") || `<div class="empty">No data yet.</div>`;
+
+  const b = d.benchmark;
+  if (!b) { $("#bench").textContent = "No benchmark data yet."; return; }
+  $("#bench").className = "";
+  $("#bench").innerHTML = `<div class="price num">${money(b.price)}</div><div class="small">Today ${chg(b.ret_1d)} · 1 month ${chg(b.ret_1m)}</div>`;
+  let chart;
+  const draw = () => {
+    chart?.destroy();
+    chart = new Chart($("#benchChart"), {
+      type: "line",
+      data: { labels: b.spark.map((_, i) => i), datasets: [{ data: b.spark, borderColor: SR.cssVar("--series-1"), borderWidth: 2, pointRadius: 0, tension: 0.2 }] },
+      options: { maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { displayColors: false, callbacks: { title: () => "", label: (c) => money(c.parsed.y) } } },
+        interaction: { mode: "index", intersect: false },
+        scales: { x: { display: false }, y: { display: false } } },
+    });
+  };
+  draw();
+  addEventListener("sr-theme", draw);
+})();
+</script>
+{% endblock %}

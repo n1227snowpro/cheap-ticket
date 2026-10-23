@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}StockRadar — News & Social{% endblock %}
+{% block content %}
+<h1>News &amp; social</h1>
+<p class="sub">Headlines and posts about tracked stocks, tagged by ticker and tone.</p>
+<div class="presets" id="kind">
+  <button class="chip on" data-v="">Everything</button>
+  <button class="chip" data-v="news">News</button>
+  <button class="chip" data-v="social">Social</button>
+</div>
+<div class="presets" id="mood">
+  <button class="chip on" data-v="">Any tone</button>
+  <button class="chip" data-v="positive">Positive</button>
+  <button class="chip" data-v="negative">Negative</button>
+  <input id="tk" placeholder="Filter ticker" style="padding:7px 12px;border-radius:999px;border:1px solid var(--border);background:var(--surface);color:var(--text);font:inherit;width:140px;text-transform:uppercase">
+</div>
+<div class="card"><ul class="feed" id="list"><li class="empty">Loading…</li></ul></div>
+{% endblock %}
+{% block scripts %}
+<script>
+(() => {
+  const { $, esc, api, ago } = SR;
+  const st = { kind: "", mood: "", ticker: new URLSearchParams(location.search).get("ticker") || "" };
+  $("#tk").value = st.ticker;
+  const moodTag = (s) => s == null ? `<span class="mood neu">unrated</span>` : s > 0.1 ? `<span class="mood pos">positive</span>` : s < -0.1 ? `<span class="mood neg">negative</span>` : `<span class="mood neu">neutral</span>`;
+  const chips = (id, key) => $(id).addEventListener("click", (e) => {
+    const c = e.target.closest(".chip"); if (!c) return;
+    st[key] = c.dataset.v;
+    $(id).querySelectorAll(".chip").forEach((x) => x.classList.toggle("on", x === c));
+    load();
+  });
+  chips("#kind", "kind"); chips("#mood", "mood");
+  $("#tk").addEventListener("input", (e) => { st.ticker = e.target.value.trim().toUpperCase(); clearTimeout(st.t); st.t = setTimeout(load, 250); });
+  async function load() {
+    const q = new URLSearchParams();
+    for (const k of ["kind", "mood", "ticker"]) if (st[k]) q.set(k, st[k]);
+    const d = await api("/api/feed?" + q);
+    $("#list").innerHTML = d.items.map((i) => `<li>
+      <div class="meta"><a href="/stock/${encodeURIComponent(i.ticker)}"><b>${esc(i.ticker)}</b></a><br>${ago(i.time)}</div>
+      <div><a class="title" href="${SR.url(i.url)}" target="_blank" rel="noopener">${esc(i.title)}</a>
+        <div class="meta">${i.kind === "news" ? "📰" : "💬"} ${esc(i.source || "")} · ${moodTag(i.sentiment)}${i.impact ? ` · ${esc(i.impact)} impact` : ""}${i.score != null ? ` · ▲ ${i.score}` : ""}</div>
+        ${i.summary ? `<div class="summ">${esc(i.summary)}</div>` : ""}
+      </div></li>`).join("") || `<li class="empty">Nothing matches.</li>`;
+  }
+  load();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}StockRadar{% endblock %}</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📡</text></svg>">
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+<script>try{const t=localStorage.getItem('sr-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/">📡 StockRadar</a>
+  <nav>
+    <a href="/" class="{{ 'on' if page=='today' }}">Today</a>
+    <a href="/screener" class="{{ 'on' if page=='screener' }}">Screener</a>
+    <a href="/feed" class="{{ 'on' if page=='feed' }}">News &amp; Social</a>
+    <a href="/watchlist" class="{{ 'on' if page=='watchlist' }}">Watchlist</a>
+    <a href="/learn" class="{{ 'on' if page=='learn' }}">How it works</a>
+  </nav>
+  <form class="search" onsubmit="event.preventDefault();const v=this.q.value.trim().toUpperCase();if(v)location='/stock/'+encodeURIComponent(v)">
+    <input name="q" placeholder="Ticker…" aria-label="Go to ticker" autocomplete="off" list="tickerlist">
+    <datalist id="tickerlist"></datalist>
+  </form>
+  <button class="icon-btn" id="themeBtn" title="Toggle dark mode" aria-label="Toggle dark mode">◐</button>
+</header>
+<div id="demoBanner" class="banner" hidden>
+  <b>Demo data.</b> These are <b>fictional companies with synthetic numbers</b> so you can explore the dashboard.
+  Add an EODHD API key to load real US stocks.
+</div>
+<main class="wrap">
+{% if not_found %}<h1>Page not found</h1><p><a href="/">Back to Today</a></p>{% endif %}
+{% block content %}{% endblock %}
+</main>
+<footer class="foot">
+  StockRadar shows educational information computed from public data. It is <b>not financial advice</b> —
+  scores can be wrong and data can be stale. Do your own research.
+</footer>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>
